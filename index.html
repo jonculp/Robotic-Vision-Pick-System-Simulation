@@ -3,6 +3,12 @@
 body{background:#111418;min-height:100vh;}
 #root{width:100%;font-family:var(--font-mono,monospace);background:#07101a;padding:0 0 8px;}
 @media(min-width:980px){#root{width:80%;margin:0 auto;}}
+@media(min-width:1200px){
+  #main-area{display:grid;grid-template-columns:1fr 320px;gap:6px;align-items:start;}
+  #cw{width:100%;}
+  .vgrid{grid-template-columns:1fr;} /* single column when in sidebar */
+  .vpcanvas{aspect-ratio:4/3;}
+}
 #cw{width:100%;aspect-ratio:16/9;min-height:220px;max-height:580px;border-radius:4px;overflow:hidden;position:relative;background:radial-gradient(ellipse at 60% 40%,#0f2035 0%,#080e18 60%,#04080f 100%);border:.5px solid #1a2e44;}
 #rh{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:44px;height:5px;border-radius:3px 3px 0 0;background:#1a2e44;cursor:ns-resize;z-index:10;}
 #rh:hover{background:#3a6090;}
@@ -25,12 +31,14 @@ button{font-size:12px;padding:5px 13px;background:linear-gradient(160deg,#0d1e2e
 button:hover:not(:disabled){background:linear-gradient(160deg,#142a40,#0f2030);border-color:#2a4460;color:#c8e0f4;}
 button:disabled{opacity:.35;cursor:default;}
 .br{border-color:#2a5080;color:#7dc8ff;background:linear-gradient(160deg,#0d1e30,#0a1828);}
+button.wn{background:linear-gradient(160deg,#2a1a04,#1a0e02);border-color:#5a3a08;color:#f5a623;}
+button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504);border-color:#7a5010;}
 .br:hover:not(:disabled){background:linear-gradient(160deg,#142a42,#0f2038);border-color:#3a70a0;}
 .bg{border-color:#1d4a28;color:#5ad87a;background:linear-gradient(160deg,#0b1f10,#091a0e);}
 .bg:hover:not(:disabled){background:linear-gradient(160deg,#132a18,#0f2213);border-color:#2a6a38;}
 .lbl2{font-size:10px;color:#2e4a60;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;}
-#lw{background:#050810;border-radius:4px 4px 0 0;border:.5px solid #121e2c;border-bottom:none;height:100px;overflow-y:auto;padding:6px 9px;}
-#lrh{height:5px;border-radius:0 0 3px 3px;background:#1a2e44;cursor:ns-resize;border:.5px solid #121e2c;border-top:none;}
+#lw{background:#050810;border-radius:0 0 4px 4px;border:.5px solid #121e2c;border-top:none;height:160px;overflow-y:auto;padding:6px 9px;}
+#lrh{height:5px;border-radius:3px 3px 0 0;background:#1a2e44;cursor:ns-resize;width:44px;margin:0 auto;}
 #lrh:hover{background:#3a6090;}
 #lw::-webkit-scrollbar{width:3px;}#lw::-webkit-scrollbar-thumb{background:#1e3048;border-radius:2px;}
 .ll{font-size:11px;line-height:1.7;}.ll .ts{color:#1e3248;margin-right:6px;}
@@ -43,24 +51,47 @@ button:disabled{opacity:.35;cursor:default;}
 .vpdot.live{background:#3de080;}
 .vpstat{font-size:10px;color:#3aa8f0;}
 .vpcanvas{display:block;width:100%;aspect-ratio:4/3;}
-.wpnode{padding:3px 5px;border-radius:3px;border:.5px solid #1a2e44;color:#2a4a60;background:#080e18;white-space:nowrap;transition:all .3s;text-align:center;line-height:1.3;font-size:9px;}
+.wpnode{padding:4px 6px;border-radius:3px;border:.5px solid #1a2e44;color:#2a4a60;background:#080e18;white-space:nowrap;transition:all .3s;text-align:center;font-size:9px;line-height:1.4;display:flex;align-items:center;justify-content:center;}
 .wpnode.active{color:#fb923c;border-color:#fb923c;background:#1a0e04;box-shadow:0 0 6px rgba(251,146,60,.3);}
 .wpnode.done{color:#4ade80;border-color:#1a5030;background:#061008;}
 .wpnode.replanned{color:#f5a623;border-color:#f5a623;background:#1a0e00;}
-.wparrow{color:#1a2e44;padding:0 2px;font-size:8px;flex-shrink:0;}
+.wparrow{color:#1a2e44;padding:0 2px;font-size:8px;flex-shrink:0;align-self:center;}
 .dbar-grad{flex:1;height:6px;border-radius:2px;}
 .dbar-lbl{font-size:9px;color:#2e4a60;white-space:nowrap;}
 </style>
 <div id="root">
-  <div id="cw"><canvas id="c"></canvas>
-    <div id="rh"></div>
-    <div id="ov">
-      <div class="badge ph" id="plbl">Idle — ready</div><br>
-      <div class="badge ok" id="dlbl">Calibration: OK</div>
+  <!-- TOP: controls, metrics, fps -->
+  <div id="cb">
+    <div class="lbl2">Controls</div>
+    <div id="cr">
+      <button class="br" id="btnr" onclick="startPick()">▶ Run pick cycle</button>
+      <button id="btna" onclick="toggleAuto()">Auto: OFF</button>
+      <button id="btnd" onclick="runDiag()">Diagnostics</button>
+      <button onclick="addPart()">+ Add part</button>
+      <button onclick="randomizeParts()">⟳ Randomize</button>
+      <button class="wn" onclick="injectFault()">Inject fault</button>
+      <button class="bg" id="btnpath" onclick="togglePath()">Path: ON</button>
     </div>
   </div>
+  <div id="sr">
+    <div class="st" id="st0"><div class="sl">Picks</div><div class="sv" id="sp">0</div><div class="ss">total</div></div>
+    <div class="st" id="st1"><div class="sl">Cycle time</div><div class="sv" id="sc">—</div><div class="ss">ms</div></div>
+    <div class="st" id="st2"><div class="sl">Success rate</div><div class="sv" id="ss2">—</div><div class="ss">%</div></div>
+    <div class="st good" id="st3"><div class="sl">Reproj err</div><div class="sv" id="sr2">0.24</div><div class="ss">px (warn &gt;0.5)</div></div>
+  </div>
+  <div id="timing-bar" style="display:flex;gap:16px;justify-content:center;padding:4px 8px;background:#060c14;border:.5px solid #0e1824;border-radius:3px;margin-bottom:4px;font-family:monospace;font-size:10px;">
+    <span style="color:#3aa8f0;">3D render <span id="t-3d" style="color:#c8e0f4;">— fps</span></span>
+    <span style="color:#2a4a60;">·</span>
+    <span style="color:#4de080;">Vision compute <span id="t-compute" style="color:#c8e0f4;">— fps</span></span>
+    <span style="color:#2a4a60;">·</span>
+    <span style="color:#f5a623;">SAD latency <span id="t-sad" style="color:#c8e0f4;">— ms</span></span>
+    <span style="color:#2a4a60;">·</span>
+    <span style="color:#aa88ff;">Display refresh <span id="t-disp" style="color:#c8e0f4;">— fps</span></span>
+  </div>
+
+  <!-- MIDDLE: 14-step pipeline strip -->
   <div id="pbar" style="display:none"><div id="pfill"></div></div>
-  <div id="wpstrip" style="display:flex;align-items:center;gap:0;padding:5px 8px;background:#060c14;border:.5px solid #0e1824;border-radius:3px;margin:4px 0;font-family:monospace;font-size:10px;overflow-x:auto;flex-wrap:nowrap;">
+  <div id="wpstrip" style="display:flex;align-items:center;justify-content:center;gap:0;padding:5px 8px;background:#060c14;border:.5px solid #0e1824;border-radius:3px;margin:4px 0;font-family:monospace;font-size:9px;overflow-x:auto;flex-wrap:nowrap;">
     <div class="wpnode" id="wpn-0">Frame<br>capture</div><div class="wparrow">›</div>
     <div class="wpnode" id="wpn-1">YOLOv8<br>detect</div><div class="wparrow">›</div>
     <div class="wpnode" id="wpn-2">Depth+<br>cloud</div><div class="wparrow">›</div>
@@ -75,78 +106,64 @@ button:disabled{opacity:.35;cursor:default;}
     <div class="wpnode" id="wpn-11">Place<br>descend</div><div class="wparrow">›</div>
     <div class="wpnode" id="wpn-12">Release</div><div class="wparrow">›</div>
     <div class="wpnode" id="wpn-13">Return<br>home</div>
-    <div style="margin-left:auto;padding-left:8px;color:#1a3a5a;font-size:9px;white-space:nowrap;" id="wp-replan-lbl"></div>
   </div>
-  <div id="sr">
-    <div class="st" id="st0"><div class="sl">Picks</div><div class="sv" id="sp">0</div><div class="ss">total</div></div>
-    <div class="st" id="st1"><div class="sl">Cycle time</div><div class="sv" id="sc">—</div><div class="ss">ms</div></div>
-    <div class="st" id="st2"><div class="sl">Success rate</div><div class="sv" id="ss2">—</div><div class="ss">%</div></div>
-    <div class="st good" id="st3"><div class="sl">Reproj err</div><div class="sv" id="sr2">0.24</div><div class="ss">px (warn &gt;0.5)</div></div>
-  </div>
-  <div id="cb">
-    <div class="lbl2">Controls</div>
-    <div id="cr">
-      <button class="br" id="btnr" onclick="startPick()">▶ Run pick cycle</button>
-      <button class="br" id="btna" onclick="toggleAuto()">Auto: OFF</button>
-      <button class="bg" id="btnd" onclick="runDiag()">Diagnostics</button>
-      <button onclick="addPart()">+ Add part</button>
-      <button onclick="randomizeParts()">⟳ Randomize</button>
-      <button onclick="injectFault()">Inject fault</button>
-      <button id="btnpath" onclick="togglePath()">Path: ON</button>
-    </div>
-  </div>
+  <div id="wp-replan-lbl" style="text-align:center;font-family:monospace;font-size:9px;color:#1a3a5a;min-height:14px;margin-bottom:2px;"></div>
 
-  <div class="lbl2" style="margin-top:6px;">Vision panels — stereo capture · disparity · depth · detection · point cloud</div>
-  <div id="timing-bar" style="display:flex;gap:12px;padding:4px 8px;background:#060c14;border:.5px solid #0e1824;border-radius:3px;margin-bottom:6px;font-family:monospace;font-size:10px;">
-    <span style="color:#2a4a60;">PIPELINE:</span>
-    <span style="color:#3aa8f0;">3D render <span id="t-3d" style="color:#c8e0f4;">— fps</span></span>
-    <span style="color:#2a4a60;">·</span>
-    <span style="color:#4de080;">Vision compute <span id="t-compute" style="color:#c8e0f4;">— fps</span></span>
-    <span style="color:#2a4a60;">·</span>
-    <span style="color:#f5a623;">SAD latency <span id="t-sad" style="color:#c8e0f4;">— ms</span></span>
-    <span style="color:#2a4a60;">·</span>
-    <span style="color:#aa88ff;">Display refresh <span id="t-disp" style="color:#c8e0f4;">— fps</span></span>
-  </div>
-  <div class="vgrid">
-    <div class="vpanel">
-      <div class="vphdr"><div class="vphdr-left"><span class="vpdot live"></span>Left camera (raw)</div><span class="vpstat" id="stat-fl"></span></div>
-      <canvas class="vpcanvas" id="vl" width="320" height="240"></canvas>
-    </div>
-    <div class="vpanel">
-      <div class="vphdr"><div class="vphdr-left"><span class="vpdot live"></span>Right camera (raw)</div><span class="vpstat" id="stat-fr"></span></div>
-      <canvas class="vpcanvas" id="vr" width="320" height="240"></canvas>
-    </div>
-    <div class="vpanel">
-      <div class="vphdr"><div class="vphdr-left"><span class="vpdot" id="disp-dot"></span>Disparity map</div><span class="vpstat" id="stat-disp"></span></div>
-      <canvas class="vpcanvas" id="vd" width="320" height="240"></canvas>
-      <div class="dbar">
-        <span class="dbar-lbl">far</span>
-        <div class="dbar-grad" id="disp-grad"></div>
-        <span class="dbar-lbl">near</span>
+  <!-- 3D VIEWPORT + VISION PANELS side-by-side on wide screens -->
+  <div id="main-area">
+    <div>
+      <div id="cw"><canvas id="c"></canvas>
+        <div id="rh"></div>
+        <div id="ov">
+          <div class="badge ph" id="plbl">Idle — ready</div><br>
+          <div class="badge ok" id="dlbl">Calibration: OK</div>
+        </div>
       </div>
     </div>
-    <div class="vpanel">
-      <div class="vphdr"><div class="vphdr-left"><span class="vpdot live" id="depth-dot"></span>Depth map (metric)</div><span class="vpstat" id="stat-depth"></span></div>
-      <canvas class="vpcanvas" id="vdepth" width="320" height="240"></canvas>
-      <div class="dbar">
-        <span class="dbar-lbl">5.5m</span>
-        <div class="dbar-grad" id="depth-grad"></div>
-        <span class="dbar-lbl">7.5m</span>
+    <div>
+      <div class="lbl2" style="margin-top:0;">Vision panels</div>
+      <div class="vgrid">
+        <div class="vpanel">
+          <div class="vphdr"><div class="vphdr-left"><span class="vpdot live"></span>Left camera (raw)</div><span class="vpstat" id="stat-fl"></span></div>
+          <canvas class="vpcanvas" id="vl" width="320" height="240"></canvas>
+        </div>
+        <div class="vpanel">
+          <div class="vphdr"><div class="vphdr-left"><span class="vpdot live"></span>Right camera (raw)</div><span class="vpstat" id="stat-fr"></span></div>
+          <canvas class="vpcanvas" id="vr" width="320" height="240"></canvas>
+        </div>
+        <div class="vpanel">
+          <div class="vphdr"><div class="vphdr-left"><span class="vpdot" id="disp-dot"></span>Disparity map</div><span class="vpstat" id="stat-disp"></span></div>
+          <canvas class="vpcanvas" id="vd" width="320" height="240"></canvas>
+          <div class="dbar">
+            <span class="dbar-lbl">far</span>
+            <div class="dbar-grad" id="disp-grad"></div>
+            <span class="dbar-lbl">near</span>
+          </div>
+        </div>
+        <div class="vpanel">
+          <div class="vphdr"><div class="vphdr-left"><span class="vpdot live" id="depth-dot"></span>Depth map (metric)</div><span class="vpstat" id="stat-depth"></span></div>
+          <canvas class="vpcanvas" id="vdepth" width="320" height="240"></canvas>
+          <div class="dbar">
+            <span class="dbar-lbl">5.5m</span>
+            <div class="dbar-grad" id="depth-grad"></div>
+            <span class="dbar-lbl">7.5m</span>
+          </div>
+        </div>
+        <div class="vpanel">
+          <div class="vphdr"><div class="vphdr-left"><span class="vpdot live"></span>Detection overlay</div><span class="vpstat" id="detstat">0 detections</span></div>
+          <canvas class="vpcanvas" id="vdet" width="320" height="240"></canvas>
+        </div>
+        <div class="vpanel">
+          <div class="vphdr"><div class="vphdr-left"><span class="vpdot live"></span>Point cloud (top-down)</div><span class="vpstat" id="pcstat">0 pts</span></div>
+          <canvas class="vpcanvas" id="vpc" width="320" height="240"></canvas>
+        </div>
       </div>
-    </div>
-    <div class="vpanel">
-      <div class="vphdr"><div class="vphdr-left"><span class="vpdot live"></span>Detection overlay</div><span class="vpstat" id="detstat">0 detections</span></div>
-      <canvas class="vpcanvas" id="vdet" width="320" height="240"></canvas>
-    </div>
-    <div class="vpanel">
-      <div class="vphdr"><div class="vphdr-left"><span class="vpdot live"></span>Point cloud (top-down)</div><span class="vpstat" id="pcstat">0 pts</span></div>
-      <canvas class="vpcanvas" id="vpc" width="320" height="240"></canvas>
     </div>
   </div>
 
   <div class="lbl2" style="margin-top:6px;">System log</div>
-  <div id="lw"></div>
   <div id="lrh"></div>
+  <div id="lw"></div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -198,30 +215,43 @@ const PLACE={x:0.4,z:0.4};
 const td=mkCyl(0.36,0.36,0.015,0x1a4a2a,0.9,0);td.position.set(PLACE.x,PLAT_TOP+0.008,PLACE.z);scene.add(td);
 const tr=new THREE.Mesh(new THREE.TorusGeometry(0.36,0.015,8,32),new THREE.MeshStandardMaterial({color:0x2aaa4a,emissive:new THREE.Color(0x0a3a1a)}));tr.rotation.x=Math.PI/2;tr.position.set(PLACE.x,PLAT_TOP+0.015,PLACE.z);scene.add(tr);
 
-// Camera rig: vertical pole on +X side (opposite the arm at -2.5), horizontal boom
-// extending inward over platform center, cameras hanging straight down at the end.
-const CAM_POLE_X=3.2;       // pole base X — clear of platform edge at +2.1
-const CAM_BOOM_Y=6.5;       // top of pole / boom height — clears arm max reach
-const CAM_BOOM_END_X=0;     // boom extends to platform center X=0
-const CAM_BASE_Y=CAM_BOOM_Y;
+// Camera rig: L-bracket mount. Pole on +X side outside platform, horizontal boom
+// extends inward over platform center, cameras hang DOWN from boom end.
+const CAM_POLE_X=2.8;       // pole base X — just outside platform edge (+2.1)
+const CAM_BOOM_Y=5.5;       // boom height
+const CAM_BOOM_END_X=0;     // boom tip over platform center
+const CAM_BASE_Y=CAM_BOOM_Y-0.3; // cameras hang 0.3 below boom
 const CAM_BASE_Z=0;
 const BASELINE=0.85;
 
-// Vertical pole
-const cpole=mkCyl(0.06,0.06,CAM_BOOM_Y,0x182230,0.7,0.3);
+// Vertical pole — reasonable height, not too tall
+const cpole=mkCyl(0.07,0.07,CAM_BOOM_Y,0x1c2a3a,0.6,0.45);
 cpole.position.set(CAM_POLE_X,CAM_BOOM_Y/2,0);scene.add(cpole);
-// Horizontal boom from pole top to platform center
+// Base foot plate
+const cfoot=mkBox(0.4,0.05,0.4,0x1a2535,0.7,0.3);
+cfoot.position.set(CAM_POLE_X,0.025,0);scene.add(cfoot);
+// Horizontal boom from pole top inward to platform center
 const boomLen=CAM_POLE_X-CAM_BOOM_END_X;
-const camBar=mkBox(boomLen,0.08,0.08,0x1c2a3a,0.7,0.4);
+const camBar=mkBox(boomLen,0.07,0.07,0x1c2a3a,0.7,0.4);
 camBar.position.set((CAM_POLE_X+CAM_BOOM_END_X)/2,CAM_BOOM_Y,0);scene.add(camBar);
-// Short vertical drops at camera positions
+// Gusset brace from pole to boom for realism
+const braceLen=Math.sqrt(1.2**2+1.2**2);
+const brace=mkBox(braceLen,0.04,0.04,0x1a2535,0.7,0.3);
+brace.position.set(CAM_POLE_X-0.6,CAM_BOOM_Y-0.6,0);
+brace.rotation.z=-Math.PI/4;scene.add(brace);
+// Short vertical drop bar at boom end, cameras hang below
+const dropBar=mkCyl(0.04,0.04,0.4,0x1c2a3a,0.6,0.4);
+dropBar.position.set(CAM_BOOM_END_X,CAM_BOOM_Y-0.2,0);scene.add(dropBar);
+// Small crossbar at bottom of drop for camera mounts
+const crossBar=mkBox(BASELINE*2+0.3,0.05,0.05,0x1c2a3a,0.6,0.4);
+crossBar.position.set(CAM_BOOM_END_X,CAM_BASE_Y,0);scene.add(crossBar);
+// Camera bodies hanging below crossbar
 [-BASELINE,BASELINE].forEach(x=>{
-  const drop=mkCyl(0.03,0.03,0.25,0x182230,0.7,0.3);
-  drop.position.set(CAM_BOOM_END_X+x,CAM_BOOM_Y-0.12,0);scene.add(drop);
-  const g=new THREE.Group();g.position.set(CAM_BOOM_END_X+x,CAM_BOOM_Y,0);
-  g.add(mkBox(0.22,0.17,0.28,0x1c2a3a,0.6,0.45));
-  const l=mkCyl(0.055,0.055,0.12,0x111111,0.2,0.8);
-  l.rotation.x=Math.PI/2;l.position.set(0,-0.12,0);g.add(l);
+  const g=new THREE.Group();g.position.set(CAM_BOOM_END_X+x,CAM_BASE_Y,0);
+  g.add(mkBox(0.18,0.14,0.22,0x1c2a3a,0.6,0.45));
+  // Lens pointing down
+  const l=mkCyl(0.045,0.045,0.1,0x080808,0.1,0.8);
+  l.rotation.x=Math.PI/2;l.position.set(0,-0.09,0);g.add(l);
   scene.add(g);
 });
 
@@ -317,8 +347,8 @@ let bboxObj=null;
 function showBbox(p){if(bboxObj){scene.remove(bboxObj);bboxObj=null;}bboxObj=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(0.36,0.36,0.36)),new THREE.LineBasicMaterial({color:0x4dffaa}));bboxObj.position.copy(p.position);scene.add(bboxObj);}
 function hideBbox(){if(bboxObj){scene.remove(bboxObj);bboxObj=null;}}
 
-const CAM_TARGET=new THREE.Vector3(-0.8,1.4,0);
-let camT=2.05,camP=0.48,camR=12.5,velT=0,velP=0;
+const CAM_TARGET=new THREE.Vector3(0.2,1.8,0);
+let camT=2.3,camP=0.38,camR=13,velT=0,velP=0;
 function updCam(){const x=CAM_TARGET.x+camR*Math.sin(camT)*Math.cos(camP);const y=CAM_TARGET.y+camR*Math.sin(camP);const z=CAM_TARGET.z+camR*Math.cos(camT)*Math.cos(camP);camera.position.set(x,y,z);camera.lookAt(CAM_TARGET);}
 updCam();
 const cv=document.getElementById('c');
@@ -332,12 +362,12 @@ cv.addEventListener('mousemove',e=>{
   if(drag){const dT=-dx*0.005,dP=dy*0.004;velT=lerp(velT,dT,0.35);velP=lerp(velP,dP,0.35);camT+=dT;camP=clamp(camP+dP,0.06,1.25);updCam();}
   if(panning){const right=new THREE.Vector3();right.crossVectors(camera.getWorldDirection(new THREE.Vector3()),camera.up).normalize();const sc=camR*0.0008;CAM_TARGET.addScaledVector(right,-dx*sc);CAM_TARGET.addScaledVector(camera.up,dy*sc);updCam();}
 });
-cv.addEventListener('wheel',e=>{camR=clamp(camR+e.deltaY*0.010,4,22);updCam();e.preventDefault();},{passive:false});
+cv.addEventListener('wheel',e=>{camR=clamp(camR+e.deltaY*0.010,4,30);updCam();e.preventDefault();},{passive:false});
 function tickCamInertia(){if(drag||panning)return;if(Math.abs(velT)<0.0001&&Math.abs(velP)<0.0001)return;velT*=0.88;velP*=0.88;camT+=velT;camP=clamp(camP+velP,0.06,1.25);updCam();}
 
 new ResizeObserver(entries=>{const{width,height}=entries[0].contentRect;if(width<1||height<1)return;renderer.setSize(width,height);camera.aspect=width/height;camera.updateProjectionMatrix();}).observe(cw);
 {const rh=document.getElementById('rh');let rsz=false,rsyStart=0,rshStart=0;rh.addEventListener('mousedown',e=>{rsz=true;rsyStart=e.clientY;rshStart=cw.clientHeight;document.body.style.cursor='ns-resize';e.preventDefault();});document.addEventListener('mousemove',e=>{if(!rsz)return;const h=Math.max(180,Math.min(580,rshStart+(e.clientY-rsyStart)));cw.style.height=h+'px';cw.style.aspectRatio='unset';});document.addEventListener('mouseup',()=>{rsz=false;document.body.style.cursor='';});}
-{const lrh=document.getElementById('lrh'),lw=document.getElementById('lw');let rsz=false,rsyStart=0,rshStart=0;lrh.addEventListener('mousedown',e=>{rsz=true;rsyStart=e.clientY;rshStart=lw.clientHeight;document.body.style.cursor='ns-resize';e.preventDefault();});document.addEventListener('mousemove',e=>{if(!rsz)return;lw.style.height=Math.max(60,Math.min(400,rshStart+(e.clientY-rsyStart)))+'px';});document.addEventListener('mouseup',()=>{rsz=false;document.body.style.cursor='';});}
+{const lrh=document.getElementById('lrh'),lw=document.getElementById('lw');let rsz=false,rsyStart=0,rshStart=0;lrh.addEventListener('mousedown',e=>{rsz=true;rsyStart=e.clientY;rshStart=lw.clientHeight;document.body.style.cursor='ns-resize';e.preventDefault();});document.addEventListener('mousemove',e=>{if(!rsz)return;lw.style.height=Math.max(60,Math.min(600,rshStart-(e.clientY-rsyStart)))+'px';});document.addEventListener('mouseup',()=>{rsz=false;document.body.style.cursor='';});}
 
 const logEl=document.getElementById('lw');
 function log(msg,cls='info'){const now=new Date();const ts=now.toTimeString().slice(0,8)+'.'+String(now.getMilliseconds()).padStart(3,'0');const d=document.createElement('div');d.className='ll '+cls;d.innerHTML=`<span class="ts">[${ts}]</span><span class="ms">${msg}</span>`;logEl.appendChild(d);while(logEl.children.length>120)logEl.removeChild(logEl.firstChild);logEl.scrollTop=logEl.scrollHeight;}
@@ -360,7 +390,9 @@ let pathOrigLine=null,pathActualLine=null,pathWpMarkers=[];
 let pathVisible=true;
 function togglePath(){
   pathVisible=!pathVisible;
-  document.getElementById('btnpath').textContent='Path: '+(pathVisible?'ON':'OFF');
+  const btn=document.getElementById('btnpath');
+  btn.textContent='Path: '+(pathVisible?'ON':'OFF');
+  btn.className=pathVisible?'bg':'';
   if(pathOrigLine)pathOrigLine.visible=pathVisible;
   if(pathActualLine)pathActualLine.visible=pathVisible;
   pathWpMarkers.forEach(m=>{if(m.visible!==undefined)m.visible=pathVisible;});
@@ -480,15 +512,17 @@ function finishDiag(){
 
 const S={IDLE:0,SCAN:1,APPROACH:2,DESCEND:3,PICK:4,LIFT:5,TRANSIT:6,PDOWN:7,RELEASE:8,RETURN:9,DONE:10};
 let state=S.IDLE,stateT=0,cp=null,held=false,cupFace=new THREE.Vector3();
+let cycleStartTime=0;
 let WPA,WPP,WPL,WPM,WPQ,WPPS,vph=0,vphT=0;
 const SCAN_DUR=[0.22,0.28,0.32,0.32,0.12,0.22];
-function setLbl(txt,col){const el=document.getElementById('plbl');el.textContent=txt;el.style.color=col||'#7dc8ff';}
+function setLbl(txt){const el=document.getElementById('plbl');el.textContent=txt;el.style.color='#7dc8ff';}
 function cupNear(wp,tol){return Math.sqrt((cupFace.x-wp.x)**2+(cupFace.y-wp.y)**2+(cupFace.z-wp.z)**2)<tol;}
 function startPick(){
   if(state!==S.IDLE||diagState!=='idle')return;
   const av=parts.filter(p=>p.visible&&p.userData.onPlat);
   if(!av.length){log('No parts on platform','warn');return;}
   cp=av[Math.floor(Math.random()*av.length)];picks++;held=false;stateT=0;vph=0;vphT=0;
+  cycleStartTime=performance.now();
   state=S.SCAN;beam.material.opacity=0.05;
   const px=cp.position.x,pz=cp.position.z,hh=cp.userData.hh,partTop=PLAT_TOP+hh*2;
   WPA={x:px,y:partTop+1.5,z:pz};WPP={x:px,y:partTop+0.01,z:pz};WPL={x:px,y:partTop+2.0,z:pz};
@@ -496,7 +530,7 @@ function startPick(){
   log(`Pick #${picks} — ${cp.userData.type} @ (${px.toFixed(2)},${pz.toFixed(2)})`,'info');
   document.getElementById('btnr').disabled=true;document.getElementById('st0').className='st active';updStats();
 }
-function toggleAuto(){autoMode=!autoMode;document.getElementById('btna').textContent='Auto: '+(autoMode?'ON':'OFF');}
+function toggleAuto(){autoMode=!autoMode;const btn=document.getElementById('btna');btn.textContent='Auto: '+(autoMode?'ON':'OFF');btn.className=autoMode?'bg':'';}
 function addPart(){const pos=safeRandPos();const p=makePart(pos.x,pos.z,parts.length);log(`Part added — ${p.userData.type}`,'ok');}
 function safeRandPos(){const EXCL=[{x:PLACE.x,z:PLACE.z,r:0.55},{x:1.5,z:1.5,r:0.55}];for(let a=0;a<200;a++){const x=(Math.random()-.5)*3.2,z=(Math.random()-.5)*3.2;if(Math.abs(x)>1.8||Math.abs(z)>1.8)continue;if(EXCL.every(e=>Math.hypot(x-e.x,z-e.z)>e.r))return{x,z};}return{x:-1.0,z:-1.0};}
 function randomizeParts(){if(state!==S.IDLE||diagState!=='idle'){log('Cannot randomize during active cycle','warn');return;}parts.forEach(p=>{const pos=safeRandPos();p.position.x=pos.x;p.position.z=pos.z;p.rotation.y=Math.random()*Math.PI*2;p.userData.onPlat=true;p.visible=true;});log(`Parts randomized — ${parts.length} placed`,'ok');}
@@ -880,7 +914,7 @@ function animate(ts){
     if(state===S.LIFT){const f=clamp(stateT/1.2,0,1);setTarget(WPL.x,lerp(WPP.y,WPL.y,eio(f)),WPL.z);updateActualPath();for(let i=0;i<9;i++)setWpDone(i);setWpActive(9);if(cupNear(WPL,0.18)||stateT>3){state=S.TRANSIT;stateT=0;setLbl('[11/14] Transit','#4ade80');}}
     if(state===S.TRANSIT){const f=clamp(stateT/2.2,0,1),ef=eio(f);let tx,ty,tz;if(ef<0.5){const t2=ef/0.5;tx=lerp(WPL.x,WPM.x,t2);ty=lerp(WPL.y,WPM.y,t2);tz=lerp(WPL.z,WPM.z,t2);}else{const t2=(ef-0.5)/0.5;tx=lerp(WPM.x,WPQ.x,t2);ty=lerp(WPM.y,WPQ.y,t2);tz=lerp(WPM.z,WPQ.z,t2);}setTarget(tx,ty,tz);updateActualPath();for(let i=0;i<10;i++)setWpDone(i);setWpActive(10);if(cupNear(WPQ,0.18)||stateT>5){state=S.PDOWN;stateT=0;setLbl('[12/14] Place descend','#34d399');}}
     if(state===S.PDOWN){const f=clamp(stateT/1.5,0,1);setTarget(WPPS.x,lerp(WPQ.y,WPPS.y,eio(f)),WPPS.z);updateActualPath();for(let i=0;i<11;i++)setWpDone(i);setWpActive(11);if(cupNear(WPPS,0.12)||stateT>4){state=S.RELEASE;stateT=0;setLbl('[13/14] Release','#34d399');}}
-    if(state===S.RELEASE){for(let i=0;i<12;i++)setWpDone(i);setWpActive(12);if(stateT>0.3&&held){held=false;succs++;cp.position.set(PLACE.x,PLAT_TOP+cp.userData.hh,PLACE.z);cp.userData.onPlat=false;const ct=Math.round(738+Math.random()*25);document.getElementById('sc').textContent=ct;log(`Placed — cycle: ${ct}ms`,'ok');updStats();}if(stateT>0.8){state=S.RETURN;stateT=0;goHome();setLbl('[14/14] Return home','#7dc8ff');}}
+    if(state===S.RELEASE){for(let i=0;i<12;i++)setWpDone(i);setWpActive(12);if(stateT>0.3&&held){held=false;succs++;cp.position.set(PLACE.x,PLAT_TOP+cp.userData.hh,PLACE.z);cp.userData.onPlat=false;const ct=Math.round(performance.now()-cycleStartTime);document.getElementById('sc').textContent=ct;log(`Placed — cycle: ${ct}ms`,'ok');updStats();}if(stateT>0.8){state=S.RETURN;stateT=0;goHome();setLbl('[14/14] Return home','#7dc8ff');}}
     if(state===S.RETURN){for(let i=0;i<13;i++)setWpDone(i);setWpActive(13);updateActualPath();if(stateT>2.5){state=S.DONE;stateT=0;}}
     if(state===S.DONE){log('Arm at home — cycle complete','dim');state=S.IDLE;setLbl('Idle — ready','#7dc8ff');document.getElementById('pfill').style.width='0%';document.getElementById('btnr').disabled=false;document.getElementById('st0').className='st';cp=null;held=false;for(let i=0;i<14;i++)setWpDone(i);setTimeout(()=>{clearPath();resetWpStrip();},3000);}
     const ord=[S.SCAN,S.APPROACH,S.DESCEND,S.PICK,S.LIFT,S.TRANSIT,S.PDOWN,S.RELEASE,S.RETURN,S.DONE];
