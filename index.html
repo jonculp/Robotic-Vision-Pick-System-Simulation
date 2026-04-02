@@ -4,14 +4,16 @@ body{background:#111418;min-height:100vh;}
 #root{width:100%;font-family:var(--font-mono,monospace);background:#07101a;padding:0 0 8px;}
 @media(min-width:980px){#root{width:80%;margin:0 auto;}}
 @media(min-width:1200px){
-  #main-area{display:grid;grid-template-columns:1fr 320px;gap:6px;align-items:start;}
-  #cw{width:100%;}
-  .vgrid{grid-template-columns:1fr;} /* single column when in sidebar */
+  #main-area{display:grid;grid-template-columns:45fr 55fr;gap:6px;align-items:stretch;}
+  #vp-wrap{display:flex;flex-direction:column;align-self:stretch;}
+  #cw{width:100%;flex:1;aspect-ratio:unset !important;min-height:300px;max-height:none;}
+  #rh{display:none;}
+  .vgrid{grid-template-columns:1fr;}
   .vpcanvas{aspect-ratio:4/3;height:auto;}
+  #panels-col{overflow-y:auto;max-height:90vh;}
 }
-#cw{width:100%;aspect-ratio:16/9;min-height:220px;max-height:580px;border-radius:4px;overflow:hidden;position:relative;background:radial-gradient(ellipse at 60% 40%,#0f2035 0%,#080e18 60%,#04080f 100%);border:.5px solid #1a2e44;}
-#rh{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:44px;height:5px;border-radius:3px 3px 0 0;background:#1a2e44;cursor:ns-resize;z-index:10;}
-#rh:hover{background:#3a6090;}
+#vp-wrap{position:relative;}
+#cw{width:100%;aspect-ratio:16/9;min-height:220px;border-radius:4px;overflow:hidden;position:relative;background:radial-gradient(ellipse at 60% 40%,#0f2035 0%,#080e18 60%,#04080f 100%);border:.5px solid #1a2e44;}
 canvas{display:block;width:100%;height:100%;}
 #ov{position:absolute;top:10px;left:12px;pointer-events:none;}
 .badge{font-size:11px;font-weight:500;padding:3px 8px;border-radius:4px;margin-bottom:4px;display:inline-block;letter-spacing:.03em;}
@@ -45,11 +47,12 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
 .ll.ok .ms{color:#3fb87a;}.ll.info .ms{color:#4d96d8;}.ll.warn .ms{color:#d4843a;}.ll.err .ms{color:#d45050;}.ll.dim .ms{color:#2e4458;}
 .vgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin:6px 0;}
 .vpanel{background:#050a10;border:.5px solid #1a2e44;border-radius:4px;overflow:hidden;}
-.vphdr{font-size:10px;color:#4a6a88;text-transform:uppercase;letter-spacing:.07em;padding:5px 8px;background:#080e18;border-bottom:.5px solid #0e1824;display:flex;align-items:center;justify-content:space-between;}
-.vphdr-left{display:flex;align-items:center;gap:6px;}
-.vpdot{width:6px;height:6px;border-radius:50%;background:#1a3a5a;}
+.vphdr{font-size:10px;color:#4a6a88;text-transform:uppercase;letter-spacing:.07em;padding:5px 8px;background:#080e18;border-bottom:.5px solid #0e1824;display:flex;align-items:center;justify-content:space-between;overflow:hidden;gap:4px;}
+.vphdr-left{display:flex;align-items:center;gap:6px;overflow:hidden;min-width:0;}
+.vphdr-left span.txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.vpstat{font-size:10px;color:#3aa8f0;white-space:nowrap;flex-shrink:0;}
+.vpdot{width:6px;height:6px;border-radius:50%;background:#1a3a5a;flex-shrink:0;}
 .vpdot.live{background:#3de080;}
-.vpstat{font-size:10px;color:#3aa8f0;}
 .vpcanvas{display:block;width:100%;height:auto;aspect-ratio:4/3;}
 .wpnode{padding:4px 6px;border-radius:3px;border:.5px solid #1a2e44;color:#2a4a60;background:#080e18;white-space:nowrap;transition:all .3s;text-align:center;font-size:9px;line-height:1.4;display:flex;align-items:center;justify-content:center;}
 .wpnode.active{color:#fb923c;border-color:#fb923c;background:#1a0e04;box-shadow:0 0 6px rgba(251,146,60,.3);}
@@ -95,7 +98,6 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
 <div id="root">
   <!-- TOP: controls, metrics, fps -->
   <div id="cb">
-    <div class="lbl2">Controls</div>
     <div id="cr">
       <button class="br" id="btnr" onclick="startPick()">▶ Run pick cycle</button>
       <button id="btna" onclick="toggleAuto()">Auto: OFF</button>
@@ -117,6 +119,7 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
     <div class="st" id="st2"><div class="sl">Success rate</div><div class="sv" id="ss2">—</div><div class="ss">%</div></div>
     <div class="st good" id="st3"><div class="sl">Reproj err</div><div class="sv" id="sr2">0.24</div><div class="ss">px (warn &gt;0.5)</div></div>
   </div>
+  <div style="height:1px;background:#0e1824;margin:2px 0;"></div>
   <div id="timing-bar" style="display:flex;gap:16px;justify-content:flex-start;padding:4px 8px;background:#060c14;border:.5px solid #0e1824;border-radius:3px;margin-bottom:4px;font-family:monospace;">
     <span style="color:#3aa8f0;">3D render <span id="t-3d" style="color:#c8e0f4;">— fps</span></span>
     <span style="color:#2a4a60;">·</span>
@@ -129,6 +132,7 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
 
   <!-- MIDDLE: 14-step pipeline strip -->
   <div id="pbar" style="display:none"><div id="pfill"></div></div>
+  <div class="lbl2" style="margin-top:4px;">Pipeline</div>
   <div id="wpstrip" style="display:flex;align-items:center;justify-content:flex-start;gap:0;padding:5px 8px;background:#060c14;border:.5px solid #0e1824;border-radius:3px;margin:4px 0;font-family:monospace;font-size:9px;overflow-x:auto;flex-wrap:nowrap;">
     <div class="wpnode" id="wpn-0">Frame<br>capture</div><div class="wparrow">›</div>
     <div class="wpnode" id="wpn-1">YOLOv8<br>detect</div><div class="wparrow">›</div>
@@ -149,28 +153,27 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
 
   <!-- 3D VIEWPORT + VISION PANELS side-by-side on wide screens -->
   <div id="main-area">
-    <div>
+    <div id="vp-wrap">
       <div id="cw"><canvas id="c"></canvas>
-        <div id="rh"></div>
         <div id="ov">
           <div class="badge ph" id="plbl">Idle — ready</div><br>
           <div class="badge ok" id="dlbl">Calibration: OK</div>
         </div>
       </div>
     </div>
-    <div>
+    <div id="panels-col">
       <div class="lbl2" style="margin-top:0;">Vision panels</div>
       <div class="vgrid">
         <div class="vpanel">
-          <div class="vphdr"><div class="vphdr-left"><span class="vpdot live"></span>Left camera (raw)</div><span class="vpstat" id="stat-fl"></span></div>
+          <div class="vphdr"><div class="vphdr-left"><span class="vpdot live"></span><span class="txt">Left camera (raw)</span></div><span class="vpstat" id="stat-fl"></span></div>
           <canvas class="vpcanvas" id="vl" width="320" height="240"></canvas>
         </div>
         <div class="vpanel">
-          <div class="vphdr"><div class="vphdr-left"><span class="vpdot live"></span>Right camera (raw)</div><span class="vpstat" id="stat-fr"></span></div>
+          <div class="vphdr"><div class="vphdr-left"><span class="vpdot live"></span><span class="txt">Right camera (raw)</span></div><span class="vpstat" id="stat-fr"></span></div>
           <canvas class="vpcanvas" id="vr" width="320" height="240"></canvas>
         </div>
         <div class="vpanel">
-          <div class="vphdr"><div class="vphdr-left"><span class="vpdot" id="disp-dot"></span>Disparity map</div><span class="vpstat" id="stat-disp"></span></div>
+          <div class="vphdr"><div class="vphdr-left"><span class="vpdot" id="disp-dot"></span><span class="txt">Disparity map</span></div><span class="vpstat" id="stat-disp"></span></div>
           <canvas class="vpcanvas" id="vd" width="320" height="240"></canvas>
           <div class="dbar">
             <span class="dbar-lbl">far</span>
@@ -179,7 +182,7 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
           </div>
         </div>
         <div class="vpanel">
-          <div class="vphdr"><div class="vphdr-left"><span class="vpdot live" id="depth-dot"></span>Depth map (metric)</div><span class="vpstat" id="stat-depth"></span></div>
+          <div class="vphdr"><div class="vphdr-left"><span class="vpdot live" id="depth-dot"></span><span class="txt">Depth map (metric)</span></div><span class="vpstat" id="stat-depth"></span></div>
           <canvas class="vpcanvas" id="vdepth" width="320" height="240"></canvas>
           <div class="dbar">
             <span class="dbar-lbl">5.5m</span>
@@ -188,11 +191,11 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
           </div>
         </div>
         <div class="vpanel">
-          <div class="vphdr"><div class="vphdr-left"><span class="vpdot live"></span>Detection overlay</div><span class="vpstat" id="detstat">0 detections</span></div>
+          <div class="vphdr"><div class="vphdr-left"><span class="vpdot live"></span><span class="txt">Detection overlay</span></div><span class="vpstat" id="detstat">0 detections</span></div>
           <canvas class="vpcanvas" id="vdet" width="320" height="240"></canvas>
         </div>
         <div class="vpanel">
-          <div class="vphdr"><div class="vphdr-left"><span class="vpdot live"></span>Point cloud (top-down)</div><span class="vpstat" id="pcstat">0 pts</span></div>
+          <div class="vphdr"><div class="vphdr-left"><span class="vpdot live"></span><span class="txt">Point cloud (top-down)</span></div><span class="vpstat" id="pcstat">0 pts</span></div>
           <canvas class="vpcanvas" id="vpc" width="320" height="240"></canvas>
         </div>
       </div>
@@ -422,8 +425,10 @@ cv.addEventListener('wheel',e=>{camR=clamp(camR+e.deltaY*0.010,4,30);updCam();e.
 function tickCamInertia(){if(drag||panning)return;if(Math.abs(velT)<0.0001&&Math.abs(velP)<0.0001)return;velT*=0.88;velP*=0.88;camT+=velT;camP=clamp(camP+velP,0.06,1.25);updCam();}
 
 new ResizeObserver(entries=>{const{width,height}=entries[0].contentRect;if(width<1||height<1)return;renderer.setSize(width,height);camera.aspect=width/height;camera.updateProjectionMatrix();}).observe(cw);
-{const rh=document.getElementById('rh');let rsz=false,rsyStart=0,rshStart=0;rh.addEventListener('mousedown',e=>{rsz=true;rsyStart=e.clientY;rshStart=cw.clientHeight;document.body.style.cursor='ns-resize';e.preventDefault();});document.addEventListener('mousemove',e=>{if(!rsz)return;const h=Math.max(180,Math.min(580,rshStart+(e.clientY-rsyStart)));cw.style.height=h+'px';cw.style.aspectRatio='unset';});document.addEventListener('mouseup',()=>{rsz=false;document.body.style.cursor='';});}
+// (viewport height handle removed)
 {const lrh=document.getElementById('lrh'),lw=document.getElementById('lw');let rsz=false,rsyStart=0,rshStart=0;lrh.addEventListener('mousedown',e=>{rsz=true;rsyStart=e.clientY;rshStart=lw.clientHeight;document.body.style.cursor='ns-resize';e.preventDefault();});document.addEventListener('mousemove',e=>{if(!rsz)return;lw.style.height=Math.max(60,Math.min(600,rshStart+(e.clientY-rsyStart)))+'px';});document.addEventListener('mouseup',()=>{rsz=false;document.body.style.cursor='';});}
+
+// (width handle removed — layout auto-sizes)
 
 const logEl=document.getElementById('lw');
 function log(msg,cls='info'){const now=new Date();const ts=now.toTimeString().slice(0,8)+'.'+String(now.getMilliseconds()).padStart(3,'0');const d=document.createElement('div');d.className='ll '+cls;d.innerHTML=`<span class="ts">[${ts}]</span><span class="ms">${msg}</span>`;logEl.appendChild(d);while(logEl.children.length>120)logEl.removeChild(logEl.firstChild);logEl.scrollTop=logEl.scrollHeight;}
