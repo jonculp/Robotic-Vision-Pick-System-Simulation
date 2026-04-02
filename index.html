@@ -79,7 +79,7 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
     <div class="st" id="st2"><div class="sl">Success rate</div><div class="sv" id="ss2">—</div><div class="ss">%</div></div>
     <div class="st good" id="st3"><div class="sl">Reproj err</div><div class="sv" id="sr2">0.24</div><div class="ss">px (warn &gt;0.5)</div></div>
   </div>
-  <div id="timing-bar" style="display:flex;gap:16px;justify-content:center;padding:4px 8px;background:#060c14;border:.5px solid #0e1824;border-radius:3px;margin-bottom:4px;font-family:monospace;font-size:10px;">
+  <div id="timing-bar" style="display:flex;gap:16px;justify-content:flex-start;padding:4px 8px;background:#060c14;border:.5px solid #0e1824;border-radius:3px;margin-bottom:4px;font-family:monospace;font-size:10px;">
     <span style="color:#3aa8f0;">3D render <span id="t-3d" style="color:#c8e0f4;">— fps</span></span>
     <span style="color:#2a4a60;">·</span>
     <span style="color:#4de080;">Vision compute <span id="t-compute" style="color:#c8e0f4;">— fps</span></span>
@@ -91,7 +91,7 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
 
   <!-- MIDDLE: 14-step pipeline strip -->
   <div id="pbar" style="display:none"><div id="pfill"></div></div>
-  <div id="wpstrip" style="display:flex;align-items:center;justify-content:center;gap:0;padding:5px 8px;background:#060c14;border:.5px solid #0e1824;border-radius:3px;margin:4px 0;font-family:monospace;font-size:9px;overflow-x:auto;flex-wrap:nowrap;">
+  <div id="wpstrip" style="display:flex;align-items:center;justify-content:flex-start;gap:0;padding:5px 8px;background:#060c14;border:.5px solid #0e1824;border-radius:3px;margin:4px 0;font-family:monospace;font-size:9px;overflow-x:auto;flex-wrap:nowrap;">
     <div class="wpnode" id="wpn-0">Frame<br>capture</div><div class="wparrow">›</div>
     <div class="wpnode" id="wpn-1">YOLOv8<br>detect</div><div class="wparrow">›</div>
     <div class="wpnode" id="wpn-2">Depth+<br>cloud</div><div class="wparrow">›</div>
