@@ -101,11 +101,26 @@ button:disabled{opacity:.35;cursor:default;}
 .ll .ts{color:#1e3248;margin-right:6px;}
 .ll.ok .ms{color:#3fb87a;}.ll.info .ms{color:#4d96d8;}
 .ll.warn .ms{color:#d4843a;}.ll.err .ms{color:#d45050;}.ll.dim .ms{color:#2e4458;}
+/* docs */
+#docs{background:#0a1520;border:.5px solid #1a2e44;border-radius:4px;padding:10px 12px;margin-top:7px;}
+#docs .doc-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin-top:6px;}
+.doc-col{}
+.doc-col-hd{font-size:10px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px;padding-bottom:4px;border-bottom:.5px solid;}
+.doc-col.real .doc-col-hd{color:#3de080;border-color:#1a4a28;}
+.doc-col.sim .doc-col-hd{color:#3aa8f0;border-color:#1a3a5a;}
+.doc-item{font-size:11px;line-height:1.7;display:flex;gap:6px;}
+.doc-item .di{flex-shrink:0;margin-top:1px;}
+.doc-col.real .di{color:#2a8a50;}
+.doc-col.sim .di{color:#2a6a9a;}
+.doc-item .dt{color:#4a6a80;}
+.doc-item .dt strong{color:#7a9ab4;font-weight:500;}
 /* hint */
 #hint{
   position:absolute;bottom:8px;right:10px;
-  font-size:10px;color:#1e3a54;letter-spacing:.04em;
+  font-size:10px;color:#5a8aaa;letter-spacing:.05em;
   pointer-events:none;font-family:var(--font-mono,monospace);
+  background:rgba(4,10,18,.55);padding:2px 7px;border-radius:3px;
+  border:.5px solid #1a3a54;
 }
 </style>
 <div id="root">
@@ -131,12 +146,38 @@ button:disabled{opacity:.35;cursor:default;}
       <button class="br" id="btna" onclick="toggleAuto()">Auto: OFF</button>
       <button class="bg" id="btnd" onclick="runDiag()">Diagnostics</button>
       <button onclick="addPart()">+ Add part</button>
+      <button onclick="randomizeParts()">⟳ Randomize</button>
       <button onclick="injectFault()">Inject fault</button>
     </div>
   </div>
   <div class="lbl2" style="margin-top:7px;">System log</div>
   <div id="lw"></div>
   <div id="lrh" title="Drag to resize log"></div>
+  <div id="docs">
+    <div class="lbl2">System notes — real vs simulated</div>
+    <div class="doc-grid">
+      <div class="doc-col real">
+        <div class="doc-col-hd">Real implementation</div>
+        <div class="doc-item"><span class="di">▸</span><span class="dt"><strong>Inverse kinematics</strong> — analytic 2-DOF IK solver with elbow disambiguation runs every frame</span></div>
+        <div class="doc-item"><span class="di">▸</span><span class="dt"><strong>Forward kinematics</strong> — FK computed from joint angles to place all arm segments</span></div>
+        <div class="doc-item"><span class="di">▸</span><span class="dt"><strong>ChArUco calibration board</strong> — correct 4×4 pattern geometry, laid flat in the corner of the platform</span></div>
+        <div class="doc-item"><span class="di">▸</span><span class="dt"><strong>Stereo camera rig</strong> — two cameras on a crossbar, baseline and placement match a real 1.7m mount</span></div>
+        <div class="doc-item"><span class="di">▸</span><span class="dt"><strong>Pick state machine</strong> — 10-stage FSM (scan → approach → descend → pick → lift → transit → place descend → release → return)</span></div>
+        <div class="doc-item"><span class="di">▸</span><span class="dt"><strong>Reprojection error threshold</strong> — 0.5px warn limit reflects real stereo calibration tolerances</span></div>
+        <div class="doc-item"><span class="di">▸</span><span class="dt"><strong>Diagnostics</strong> — two-stage sequence: Stage 1 checks stereo calibration (reprojection, epipolar, board pose delta); Stage 2 moves the arm through 6 poses and measures hand-eye RMS error at each</span></div>
+        <div class="doc-item"><span class="di">▸</span><span class="dt"><strong>Inject fault</strong> — forces reprojection error to 2.3px to simulate a miscalibrated camera, then auto-recalibrates after 4.5s; useful for testing fault detection and UI state transitions</span></div>
+      </div>
+      <div class="doc-col sim">
+        <div class="doc-col-hd">Simulated / placeholder</div>
+        <div class="doc-item"><span class="di">▸</span><span class="dt"><strong>YOLOv8 detections</strong> — confidence (0.97) and latency (18ms) are hardcoded; no actual inference</span></div>
+        <div class="doc-item"><span class="di">▸</span><span class="dt"><strong>Point cloud</strong> — "5,210 pts" count is static; no depth camera or TSDF integration</span></div>
+        <div class="doc-item"><span class="di">▸</span><span class="dt"><strong>Vacuum pressure</strong> — 71 kPa reading is fixed; pick success is instant on timer</span></div>
+        <div class="doc-item"><span class="di">▸</span><span class="dt"><strong>Cycle time</strong> — 738–763ms is a random value; no real motion planning latency</span></div>
+        <div class="doc-item"><span class="di">▸</span><span class="dt"><strong>Reprojection error value</strong> — 0.24px is a fixed default; no actual stereo calibration is performed</span></div>
+        <div class="doc-item"><span class="di">▸</span><span class="dt"><strong>ROS2 / MoveIt2</strong> — log messages are cosmetic; no ROS bridge or trajectory execution</span></div>
+      </div>
+    </div>
+  </div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -202,15 +243,13 @@ const beam=new THREE.Mesh(new THREE.ConeGeometry(1.6,3.8,18,1,true),new THREE.Me
 beam.position.set(0,3.7,-2.2);beam.rotation.x=Math.PI;scene.add(beam);
 
 // ChArUco board
-const BOARD_POS=new THREE.Vector3(1.8,PLAT_TOP+0.42,1.5);
+// ChArUco board — flat in +X+Z corner
 const boardGroup=new THREE.Group();
-boardGroup.position.copy(BOARD_POS);
-boardGroup.rotation.y=Math.atan2(-(BOARD_POS.x-0),-(BOARD_POS.z-(-2.2)));
+boardGroup.position.set(1.5, PLAT_TOP+0.022, 1.5);
+boardGroup.rotation.x=-Math.PI/2; // lay flat
 scene.add(boardGroup);
 const boardBase=mkBox(0.72,0.72,0.04,0xf0ebe0,0.9,0.05);boardGroup.add(boardBase);
 for(let i=0;i<4;i++)for(let j=0;j<4;j++){if((i+j)%2===0){const sq=mkBox(0.155,0.155,0.012,0x151515,0.9,0);sq.position.set(-0.25+i*0.17,-0.25+j*0.17,0.026);boardBase.add(sq);}}
-const boardPole=mkCyl(0.025,0.025,PLAT_TOP+0.42,0x182230,0.7,0.3);
-boardPole.position.set(BOARD_POS.x,(PLAT_TOP+0.42)/2,BOARD_POS.z);scene.add(boardPole);
 
 // ARM
 const SHOULDER=new THREE.Vector3(-2.5,2.2,0);
@@ -315,7 +354,7 @@ function makePart(px,pz,idx){
   m.userData={type:['Box','Cyl','Sphere'][t],idx,hh,onPlat:true};
   scene.add(m);parts.push(m);return m;
 }
-[[-0.65,-0.55],[-0.05,0.45],[0.65,-0.45],[0.15,0.7],[-0.45,0.2]].forEach(([x,z],i)=>makePart(x,z,i));
+[[-1.0,-0.6],[-0.7,0.9],[0.8,-0.8],[-1.1,0.4],[0.7,-1.0]].forEach(([x,z],i)=>makePart(x,z,i));
 
 let bboxObj=null;
 function showBbox(p){if(bboxObj){scene.remove(bboxObj);bboxObj=null;}bboxObj=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(0.36,0.36,0.36)),new THREE.LineBasicMaterial({color:0x4dffaa}));bboxObj.position.copy(p.position);scene.add(bboxObj);}
@@ -567,7 +606,34 @@ function startPick(){
 }
 
 function toggleAuto(){autoMode=!autoMode;document.getElementById('btna').textContent='Auto: '+(autoMode?'ON':'OFF');}
-function addPart(){const x=(Math.random()-.5)*1.8,z=(Math.random()-.5)*1.8;const p=makePart(x,z,parts.length);log(`Part added — ${p.userData.type}`,'ok');}
+function addPart(){
+  const pos=safeRandPos();
+  const p=makePart(pos.x,pos.z,parts.length);
+  log(`Part added — ${p.userData.type}`,'ok');
+}
+function safeRandPos(){
+  const EXCL=[
+    {x:PLACE.x,z:PLACE.z,r:0.55},   // goal zone
+    {x:1.5,z:1.5,r:0.55},            // calibration board corner
+  ];
+  for(let attempts=0;attempts<200;attempts++){
+    const x=(Math.random()-.5)*3.2;
+    const z=(Math.random()-.5)*3.2;
+    if(Math.abs(x)>1.8||Math.abs(z)>1.8)continue;
+    if(EXCL.every(e=>Math.hypot(x-e.x,z-e.z)>e.r))return{x,z};
+  }
+  return{x:-1.0,z:-1.0}; // fallback
+}
+function randomizeParts(){
+  if(state!==S.IDLE||diagState!=='idle'){log('Cannot randomize during active cycle','warn');return;}
+  parts.forEach((p,i)=>{
+    const pos=safeRandPos();
+    p.position.x=pos.x;p.position.z=pos.z;
+    p.rotation.y=Math.random()*Math.PI*2;
+    p.userData.onPlat=true;p.visible=true;
+  });
+  log(`Parts randomized — ${parts.length} placed`,'ok');
+}
 function runDiag(){startDiag();}
 function injectFault(){
   reprErr=2.3;document.getElementById('dlbl').textContent='Calibration: FAULT';document.getElementById('dlbl').className='badge wn';
