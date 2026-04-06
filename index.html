@@ -66,7 +66,7 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
 .vphdr{font-size:10px;color:#4a6a88;text-transform:uppercase;letter-spacing:.07em;padding:5px 8px;background:#080e18;border-bottom:.5px solid #0e1824;display:flex;align-items:center;justify-content:space-between;overflow:hidden;gap:4px;}
 .vphdr-left{display:flex;align-items:center;gap:6px;overflow:hidden;min-width:0;}
 .vphdr-left span.txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.vpstat{font-size:10px;color:#3aa8f0;white-space:nowrap;flex-shrink:0;}
+.vpstat{font-size:10px;color:#3aa8f0;white-space:nowrap;flex-shrink:1;min-width:0;overflow:hidden;text-overflow:ellipsis;max-width:52%;}
 .vpdot{width:6px;height:6px;border-radius:50%;background:#1a3a5a;flex-shrink:0;}
 .vpdot.live{background:#3de080;}
 .vpcanvas{display:block;width:100%;height:auto;aspect-ratio:4/3;}
@@ -97,7 +97,21 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
 #root.fs-l .vphdr{font-size:14px;} #root.fs-l .vpstat{font-size:13px;} #root.fs-l .lbl2{font-size:14px;}
 #root.fs-l #timing-bar{font-size:14px;}
 #root.fs-l #rvf li,#root.fs-l #rvf>div>div:first-child{font-size:14px !important;}
-#font-size-btn{display:flex;gap:2px;align-items:center;border:.5px solid #1a2e44;border-radius:4px;padding:2px;background:#080e18;}
+.hiw-card{font-size:10px;line-height:1.6;}
+.hiw-term{color:#7dc8ff;font-weight:600;}
+.hiw-def{color:#2e4a60;}
+.hiw-steps{font-size:9px;color:#1a3a5a;background:#060c14;border:.5px solid #1a2e44;border-radius:3px;display:inline-block;padding:1px 6px;margin-bottom:3px;letter-spacing:.04em;text-transform:uppercase;}
+.rvf-hdr{font-size:10px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;}
+.rvf-li{font-size:10px;}
+#root.fs-s .hiw-card{font-size:9px;}
+#root.fs-s .hiw-steps{font-size:8px;}
+#root.fs-s .rvf-hdr,#root.fs-s .rvf-li{font-size:9px !important;}
+#root.fs-m .hiw-card{font-size:12px;}
+#root.fs-m .hiw-steps{font-size:11px;}
+#root.fs-m .rvf-hdr,#root.fs-m .rvf-li{font-size:12px !important;}
+#root.fs-l .hiw-card{font-size:14px;}
+#root.fs-l .hiw-steps{font-size:12px;}
+#root.fs-l .rvf-hdr,#root.fs-l .rvf-li{font-size:14px !important;}
 #font-size-btn button{padding:4px 8px;min-width:0;border-radius:3px;}
 #font-size-btn button.active-size{background:linear-gradient(160deg,#0d2a3e,#0a1e2e);border-color:#3aa8f0;color:#7dc8ff;}
 @media(max-width:640px){
@@ -219,28 +233,66 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
   <div id="lw"></div>
   <div id="lrh"></div>
 
+  <!-- Real vs Simulated -->
   <div id="rvf" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px;">
     <div style="background:#061008;border:.5px solid #1a4028;border-left:2px solid #3de080;border-radius:4px;padding:8px 10px;">
-      <div style="font-size:10px;color:#3de080;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Real algorithms</div>
-      <ul style="list-style:none;display:flex;flex-direction:column;gap:3px;">
-        <li style="font-size:10px;color:#6ab88a;"><span style="color:#3de080;margin-right:5px;">✓</span>SAD block-match &amp; OpenCV StereoBM/SGBM stereo disparity — real algorithms on rendered pixels</li>
-        <li style="font-size:10px;color:#6ab88a;"><span style="color:#3de080;margin-right:5px;">✓</span>Z = f·B/d depth formula — real projective geometry from actual disparity</li>
-        <li style="font-size:10px;color:#6ab88a;"><span style="color:#3de080;margin-right:5px;">✓</span>Point cloud built from per-pixel depth map</li>
-        <li style="font-size:10px;color:#6ab88a;"><span style="color:#3de080;margin-right:5px;">✓</span>Stereo baseline geometry — two render targets at real physical offset</li>
-        <li style="font-size:10px;color:#6ab88a;"><span style="color:#3de080;margin-right:5px;">✓</span>IK waypoint interpolation &amp; pick cycle state machine with real timing</li>
-        <li style="font-size:10px;color:#6ab88a;"><span style="color:#3de080;margin-right:5px;">✓</span>Reprojection error metric from stereo calibration model</li>
+      <div class="rvf-hdr" style="color:#3de080;">✓ Real — runs actual algorithms</div>
+      <ul style="list-style:none;display:flex;flex-direction:column;gap:4px;">
+        <li class="rvf-li" style="color:#6ab88a;"><span style="color:#3de080;font-weight:600;">Stereo matching</span> <span style="color:#3a5a48;">— SAD block-match &amp; OpenCV SGBM on live rendered pixels</span></li>
+        <li class="rvf-li" style="color:#6ab88a;"><span style="color:#3de080;font-weight:600;">Depth reconstruction</span> <span style="color:#3a5a48;">— Z = f·B/d, real projective geometry from actual disparity</span></li>
+        <li class="rvf-li" style="color:#6ab88a;"><span style="color:#3de080;font-weight:600;">Point cloud</span> <span style="color:#3a5a48;">— built per-pixel from the depth map each frame</span></li>
+        <li class="rvf-li" style="color:#6ab88a;"><span style="color:#3de080;font-weight:600;">Camera baseline</span> <span style="color:#3a5a48;">— two independent render targets at real physical offset</span></li>
+        <li class="rvf-li" style="color:#6ab88a;"><span style="color:#3de080;font-weight:600;">Inverse kinematics</span> <span style="color:#3a5a48;">— analytic IK solver, waypoint interpolation, timed state machine</span></li>
+        <li class="rvf-li" style="color:#6ab88a;"><span style="color:#3de080;font-weight:600;">Reprojection error</span> <span style="color:#3a5a48;">— computed from stereo calibration model, triggers fault threshold</span></li>
       </ul>
     </div>
     <div style="background:#0e0a02;border:.5px solid #4a3008;border-left:2px solid #f5a623;border-radius:4px;padding:8px 10px;">
-      <div style="font-size:10px;color:#f5a623;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Simulated / faked</div>
-      <ul style="list-style:none;display:flex;flex-direction:column;gap:3px;">
-        <li style="font-size:10px;color:#b89060;"><span style="color:#f5a623;margin-right:5px;">~</span>YOLOv8 detection — boxes sourced from known scene positions, no inference</li>
-        <li style="font-size:10px;color:#b89060;"><span style="color:#f5a623;margin-right:5px;">~</span>Pose / ICP — label shown, but pose taken directly from Three.js transforms</li>
-        <li style="font-size:10px;color:#b89060;"><span style="color:#f5a623;margin-right:5px;">~</span>Vacuum pick — proximity threshold, no seal force or pressure physics</li>
-        <li style="font-size:10px;color:#b89060;"><span style="color:#f5a623;margin-right:5px;">~</span>Sensor noise — no IMU drift, lens distortion, or calibration error accumulation</li>
-        <li style="font-size:10px;color:#b89060;"><span style="color:#f5a623;margin-right:5px;">~</span>Object geometry — simplified primitives, no real mesh complexity</li>
-        <li style="font-size:10px;color:#b89060;"><span style="color:#f5a623;margin-right:5px;">~</span>Fault injection — scripted failures, not stochastic hardware faults</li>
+      <div class="rvf-hdr" style="color:#f5a623;">~ Simulated — stand-ins for real hardware</div>
+      <ul style="list-style:none;display:flex;flex-direction:column;gap:4px;">
+        <li class="rvf-li" style="color:#b89060;"><span style="color:#f5a623;font-weight:600;">Object detection</span> <span style="color:#5a4020;">— bounding boxes from known scene positions, no YOLOv8 inference</span></li>
+        <li class="rvf-li" style="color:#b89060;"><span style="color:#f5a623;font-weight:600;">Pose estimation</span> <span style="color:#5a4020;">— ICP label only; pose taken directly from Three.js transforms</span></li>
+        <li class="rvf-li" style="color:#b89060;"><span style="color:#f5a623;font-weight:600;">Vacuum gripper</span> <span style="color:#5a4020;">— proximity threshold only; no seal force or pressure physics</span></li>
+        <li class="rvf-li" style="color:#b89060;"><span style="color:#f5a623;font-weight:600;">Sensor noise</span> <span style="color:#5a4020;">— no IMU drift, lens distortion, or calibration error accumulation</span></li>
+        <li class="rvf-li" style="color:#b89060;"><span style="color:#f5a623;font-weight:600;">Part geometry</span> <span style="color:#5a4020;">— simple primitives; no real mesh complexity or surface texture</span></li>
+        <li class="rvf-li" style="color:#b89060;"><span style="color:#f5a623;font-weight:600;">Fault injection</span> <span style="color:#5a4020;">— scripted degradation; not stochastic hardware faults</span></li>
       </ul>
+    </div>
+  </div>
+
+  <!-- How It Works glossary -->
+  <div style="margin-top:6px;background:#080e18;border:.5px solid #1a2e44;border-radius:4px;padding:10px 12px;">
+    <div class="lbl2" style="margin-bottom:8px;">How it works — key concepts</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px 16px;">
+      <div class="hiw-card">
+        <div class="hiw-steps">steps 1–2</div>
+        <span class="hiw-term">Stereo vision</span>
+        <span class="hiw-def"> — Two cameras at a known horizontal offset (baseline). Each sees the same scene from a slightly different angle. Objects closer to the cameras appear shifted further apart between the two images (high disparity); distant objects shift less.</span>
+      </div>
+      <div class="hiw-card">
+        <div class="hiw-steps">step 3</div>
+        <span class="hiw-term">Disparity map</span>
+        <span class="hiw-def"> — For every pixel in the left image, the algorithm searches the right image on the same horizontal scanline to find the best match. The pixel shift (in px) is the disparity value. Shown here with a turbo colormap: blue = far, red = near.</span>
+      </div>
+      <div class="hiw-card">
+        <div class="hiw-steps">step 3</div>
+        <span class="hiw-term">Depth formula Z = f·B/d</span>
+        <span class="hiw-def"> — Converts disparity to metric depth. f = focal length in pixels, B = baseline in meters, d = disparity in pixels. A disparity of 82px with f=246px and B=1.70m gives Z ≈ 5.1m.</span>
+      </div>
+      <div class="hiw-card">
+        <div class="hiw-steps">steps 1–3</div>
+        <span class="hiw-term">SAD / SGBM matching</span>
+        <span class="hiw-def"> — Sum of Absolute Differences (SAD) compares pixel blocks. Semi-Global Block Matching (SGBM, via OpenCV) adds path-aggregated smoothness penalties for cleaner disparity at object edges and low-texture regions.</span>
+      </div>
+      <div class="hiw-card">
+        <div class="hiw-steps">calibration</div>
+        <span class="hiw-term">Reprojection error</span>
+        <span class="hiw-def"> — Measures stereo calibration quality: how many pixels a known 3D point projects away from its expected image position. Below 0.5px is good; above 0.5px indicates calibration drift and degrades depth accuracy.</span>
+      </div>
+      <div class="hiw-card">
+        <div class="hiw-steps">steps 5–6</div>
+        <span class="hiw-term">Inverse kinematics (IK)</span>
+        <span class="hiw-def"> — Given a target XYZ position for the end effector (suction cup), IK works backward through the arm's joint geometry to compute the joint angles needed to reach it. This sim uses a closed-form analytic solver for a 2-DOF planar arm.</span>
+      </div>
     </div>
   </div>
   <div style="height:12px;"></div>
@@ -860,7 +912,7 @@ function computeDisparity(fault){
 
   document.getElementById('depth-dot').classList.toggle('live',!fault);
   document.getElementById('stat-depth').textContent=fault?'invalid':`${validDepthCount} valid px`;
-  document.getElementById('stat-disp').textContent=useSGBM&&cvReady&&!fault?(cvAlgoName+' via OpenCV.js'):'SAD+LR via Z=fB/d';
+  document.getElementById('stat-disp').textContent=useSGBM&&cvReady&&!fault?cvAlgoName:'SAD+LR';
 }
 
 function project3D(cam,worldPt){const v=worldPt.clone().project(cam);return{x:(v.x*0.5+0.5)*CAM_W,y:(-v.y*0.5+0.5)*CAM_H,inFrustum:v.z<1&&Math.abs(v.x)<1&&Math.abs(v.y)<1};}
@@ -994,7 +1046,7 @@ function updateVisionPanels(dt,fault){
     drawRawCam(vlCtx,pixL);drawRawCam(vrCtx,pixR);
     drawDetections(fault);
     document.getElementById('stat-fl').textContent=`${CAM_W}×${CAM_H}`;
-    document.getElementById('stat-fr').textContent=`baseline=${(BASELINE_M).toFixed(2)}m`;
+    document.getElementById('stat-fr').textContent=`B=${(BASELINE_M).toFixed(2)}m`;
   }
 
   const now=performance.now();
