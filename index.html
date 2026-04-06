@@ -1,12 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Robotic Vision Pick System Simulation</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:#111418;min-height:100vh;}
 #root{width:100%;font-family:var(--font-mono,monospace);background:#07101a;padding:0 0 8px;}
 @media(min-width:980px){#root{width:80%;margin:0 auto;}}
 @media(min-width:1200px) and (min-height:900px){
-  html,body{height:100%;overflow:hidden;}
-  #root{height:100vh;display:flex;flex-direction:column;overflow:hidden;padding-bottom:0;}
-  #main-area{flex:1;min-height:0;display:grid;grid-template-columns:55fr 45fr;grid-template-rows:1fr;gap:6px;}
+  #root{display:flex;flex-direction:column;padding-bottom:0;}
+  #main-area{
+    min-height:340px;
+    display:grid;
+    grid-template-columns:55fr 45fr;
+    grid-template-rows:1fr;
+    gap:6px;
+  }
   #vp-wrap{display:flex;flex-direction:column;min-height:0;overflow:hidden;}
   #cw{width:100%;flex:1;aspect-ratio:unset !important;min-height:0;max-height:none;}
   #rh{display:none;}
@@ -14,8 +25,8 @@ body{background:#111418;min-height:100vh;}
   .vgrid{display:grid;grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(3,1fr);flex:1;min-height:0;gap:4px;margin:0;overflow:hidden;}
   .vpanel{display:flex;flex-direction:column;min-height:0;overflow:hidden;}
   .vpcanvas{flex:1;width:100%;min-height:0;aspect-ratio:unset !important;}
-  #lw{height:120px;max-height:120px;}
-  #lrh{display:none;}
+  #lw{height:160px;max-height:160px;}
+  #lrh{display:block;}
 }
 #vp-wrap{position:relative;}
 #cw{width:100%;aspect-ratio:16/9;min-height:220px;border-radius:4px;overflow:hidden;position:relative;background:radial-gradient(ellipse at 60% 40%,#0f2035 0%,#080e18 60%,#04080f 100%);border:.5px solid #1a2e44;}
@@ -74,27 +85,21 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
 #root.fs-s .vphdr{font-size:9px;} #root.fs-s .vpstat{font-size:9px;} #root.fs-s .lbl2{font-size:9px;}
 #root.fs-s #timing-bar{font-size:9px;}
 #root.fs-s #rvf li,#root.fs-s #rvf>div>div:first-child{font-size:9px !important;}
-
-/* M = current L values (promoted to default M) */
 #root.fs-m .sl{font-size:12px;} #root.fs-m .sv{font-size:21px;} #root.fs-m .ss{font-size:12px;}
 #root.fs-m button{font-size:14px;padding:7px 15px;} #root.fs-m .badge{font-size:13px;padding:4px 10px;}
 #root.fs-m .ll{font-size:14px;line-height:1.9;} #root.fs-m .wpnode{font-size:11px;padding:5px 8px;}
 #root.fs-m .vphdr{font-size:12px;} #root.fs-m .vpstat{font-size:12px;} #root.fs-m .lbl2{font-size:12px;}
 #root.fs-m #timing-bar{font-size:12px;}
 #root.fs-m #rvf li,#root.fs-m #rvf>div>div:first-child{font-size:12px !important;}
-
-/* L = new larger size */
 #root.fs-l .sl{font-size:14px;} #root.fs-l .sv{font-size:26px;} #root.fs-l .ss{font-size:13px;}
 #root.fs-l button{font-size:16px;padding:9px 18px;} #root.fs-l .badge{font-size:15px;padding:5px 12px;}
 #root.fs-l .ll{font-size:16px;line-height:2.0;} #root.fs-l .wpnode{font-size:13px;padding:6px 10px;}
 #root.fs-l .vphdr{font-size:14px;} #root.fs-l .vpstat{font-size:13px;} #root.fs-l .lbl2{font-size:14px;}
 #root.fs-l #timing-bar{font-size:14px;}
 #root.fs-l #rvf li,#root.fs-l #rvf>div>div:first-child{font-size:14px !important;}
-
 #font-size-btn{display:flex;gap:2px;align-items:center;border:.5px solid #1a2e44;border-radius:4px;padding:2px;background:#080e18;}
 #font-size-btn button{padding:4px 8px;min-width:0;border-radius:3px;}
 #font-size-btn button.active-size{background:linear-gradient(160deg,#0d2a3e,#0a1e2e);border-color:#3aa8f0;color:#7dc8ff;}
-
 @media(max-width:640px){
   #root:not(.fs-s):not(.fs-l) .ll{font-size:14px;line-height:1.9;}
   #root:not(.fs-s):not(.fs-l) .wpnode{font-size:11px;}
@@ -104,8 +109,9 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
   #root:not(.fs-s):not(.fs-l) #timing-bar{font-size:12px;}
 }
 </style>
+</head>
+<body>
 <div id="root">
-  <!-- TOP: controls, metrics, fps -->
   <div id="cb">
     <div id="cr">
       <button class="br" id="btnr" onclick="startPick()">▶ Run pick cycle</button>
@@ -139,8 +145,6 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
     <span style="color:#2a4a60;">·</span>
     <span style="color:#aa88ff;">Display refresh <span id="t-disp" style="color:#c8e0f4;">— fps</span></span>
   </div>
-
-  <!-- MIDDLE: 14-step pipeline strip -->
   <div id="pbar" style="display:none"><div id="pfill"></div></div>
   <div class="lbl2" style="margin-top:4px;">Pipeline</div>
   <div id="wpstrip" style="display:flex;align-items:center;justify-content:flex-start;gap:0;padding:5px 8px;background:#060c14;border:.5px solid #0e1824;border-radius:3px;margin:4px 0;font-family:monospace;font-size:9px;flex-wrap:wrap;row-gap:4px;">
@@ -161,7 +165,6 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
   </div>
   <div id="wp-replan-lbl" style="text-align:center;font-family:monospace;font-size:9px;color:#1a3a5a;min-height:14px;margin-bottom:2px;"></div>
 
-  <!-- 3D VIEWPORT + VISION PANELS side-by-side on wide screens -->
   <div id="main-area">
     <div id="vp-wrap">
       <div id="cw"><canvas id="c"></canvas>
@@ -216,7 +219,6 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
   <div id="lw"></div>
   <div id="lrh"></div>
 
-  <!-- Real vs Faked -->
   <div id="rvf" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px;">
     <div style="background:#061008;border:.5px solid #1a4028;border-left:2px solid #3de080;border-radius:4px;padding:8px 10px;">
       <div style="font-size:10px;color:#3de080;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Real algorithms</div>
@@ -246,6 +248,20 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script async src="https://docs.opencv.org/4.9.0/opencv.js" onload="onOpenCvReady()"></script>
 <script>
+// ── DYNAMIC MAIN-AREA HEIGHT ──────────────────────────────────────────────
+function resizeMainArea(){
+  const ma=document.getElementById('main-area');
+  if(window.innerWidth>=1200&&window.innerHeight>=900){
+    const top=ma.getBoundingClientRect().top+window.scrollY;
+    ma.style.height=(window.innerHeight-top)+'px';
+  } else {
+    ma.style.height='';
+  }
+}
+window.addEventListener('resize',resizeMainArea);
+// Run after layout settles
+requestAnimationFrame(()=>requestAnimationFrame(resizeMainArea));
+
 const cw=document.getElementById('cw');
 const renderer=new THREE.WebGLRenderer({canvas:document.getElementById('c'),antialias:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
@@ -262,10 +278,10 @@ const rtR=new THREE.WebGLRenderTarget(CAM_W,CAM_H,{type:THREE.UnsignedByteType})
 const pixL=new Uint8Array(CAM_W*CAM_H*4);
 const pixR=new Uint8Array(CAM_W*CAM_H*4);
 const disparityBuf=new Float32Array(CAM_W*CAM_H);
-const grayL=new Float32Array(CAM_W*CAM_H); // pre-allocated grayscale buffers
+const grayL=new Float32Array(CAM_W*CAM_H);
 const grayR=new Float32Array(CAM_W*CAM_H);
-const dspLR=new Float32Array(CAM_W*CAM_H); // L→R disparity pass
-const dspRL=new Float32Array(CAM_W*CAM_H); // R→L disparity pass (L-R consistency)
+const dspLR=new Float32Array(CAM_W*CAM_H);
+const dspRL=new Float32Array(CAM_W*CAM_H);
 let cvReady=false,sgbm=null,cvAlgoName='',useSGBM=true;
 function toggleAlgo(){
   useSGBM=!useSGBM;
@@ -276,13 +292,13 @@ function toggleAlgo(){
 }
 function initSGBM(){
   try{
-    const nd=128; // must be multiple of 16; scene disparity ~82px so need >82
+    const nd=128;
     if(typeof cv.StereoSGBM_create==='function'){
       const bs=5;
       sgbm=cv.StereoSGBM_create(0,nd,bs,8*bs*bs,32*bs*bs,1,63,10,100,32,2);
       cvAlgoName='StereoSGBM';
     } else if(typeof cv.StereoBM_create==='function'){
-      sgbm=cv.StereoBM_create(nd,15); // blockSize must be odd ≥5
+      sgbm=cv.StereoBM_create(nd,15);
       cvAlgoName='StereoBM';
     } else {
       log('OpenCV: no stereo matcher found in this build','warn');return;
@@ -293,7 +309,6 @@ function initSGBM(){
   }catch(e){log('OpenCV: stereo init failed: '+e.message,'warn');}
 }
 function onOpenCvReady(){
-  // Use window.cv to avoid any local variable shadowing
   const ocv=window.cv;
   if(ocv&&ocv.Mat){initSGBM();}
   else if(ocv){ocv['onRuntimeInitialized']=initSGBM;}
@@ -319,7 +334,6 @@ const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const lerp=(a,b,t)=>a+(b-a)*t;
 const eio=t=>t<.5?2*t*t:-1+(4-2*t)*t;
 
-// ── FONT SIZE TOGGLE ─────────────────────────────────────────────────────
 function setFontSize(sz){
   const root=document.getElementById('root');
   root.classList.remove('fs-s','fs-m','fs-l');
@@ -328,8 +342,9 @@ function setFontSize(sz){
   else root.classList.add('fs-m');
   ['s','m','l'].forEach(s=>document.getElementById('fs-'+s).classList.toggle('active-size',s===sz));
   try{localStorage.setItem('vp-fontsize',sz);}catch(e){}
+  // Re-measure after font size changes layout
+  requestAnimationFrame(resizeMainArea);
 }
-// Restore saved preference, default M, auto-L on mobile
 (function(){
   let saved=null;try{saved=localStorage.getItem('vp-fontsize');}catch(e){}
   const mobile=window.innerWidth<=640;
@@ -341,16 +356,12 @@ function mkCyl(rt,rb,h,col,r=0.5,m=0.35,s=16){const o=new THREE.Mesh(new THREE.C
 
 const PLAT_TOP=0.12;
 scene.add(new THREE.GridHelper(26,26,0x1a2a3a,0x0e1820));
-// Platform surface texture — fine dot grid for stereo texture richness
 (function(){
   const S=512,c=document.createElement('canvas');c.width=c.height=S;
   const ctx=c.getContext('2d');
-  // Random speckle pattern — aperiodic so stereo matcher finds unique unambiguous matches
-  // (regular grids cause false correspondences; random speckle does not)
   const id=ctx.createImageData(S,S);
-  const base=[38,59,82]; // #263b52
+  const base=[38,59,82];
   for(let i=0;i<S*S;i++){
-    // Gaussian-ish speckle: sum of 3 uniform randoms
     const n=((Math.random()+Math.random()+Math.random())-1.5)*38;
     id.data[i*4  ]=clamp(base[0]+n,0,255);
     id.data[i*4+1]=clamp(base[1]+n,0,255);
@@ -367,41 +378,31 @@ const PLACE={x:0.4,z:0.4};
 const td=mkCyl(0.36,0.36,0.015,0x1a4a2a,0.9,0);td.position.set(PLACE.x,PLAT_TOP+0.008,PLACE.z);scene.add(td);
 const tr=new THREE.Mesh(new THREE.TorusGeometry(0.36,0.015,8,32),new THREE.MeshStandardMaterial({color:0x2aaa4a,emissive:new THREE.Color(0x0a3a1a)}));tr.rotation.x=Math.PI/2;tr.position.set(PLACE.x,PLAT_TOP+0.015,PLACE.z);scene.add(tr);
 
-// Camera rig: L-bracket mount. Pole on +X side outside platform, horizontal boom
-// extends inward over platform center, cameras hang DOWN from boom end.
-const CAM_POLE_X=2.8;       // pole base X — just outside platform edge (+2.1)
-const CAM_BOOM_Y=5.5;       // boom height
-const CAM_BOOM_END_X=0;     // boom tip over platform center
-const CAM_BASE_Y=CAM_BOOM_Y-0.3; // cameras hang 0.3 below boom
+const CAM_POLE_X=2.8;
+const CAM_BOOM_Y=5.5;
+const CAM_BOOM_END_X=0;
+const CAM_BASE_Y=CAM_BOOM_Y-0.3;
 const CAM_BASE_Z=0;
 const BASELINE=0.85;
 
-// Vertical pole — reasonable height, not too tall
 const cpole=mkCyl(0.07,0.07,CAM_BOOM_Y,0x1c2a3a,0.6,0.45);
 cpole.position.set(CAM_POLE_X,CAM_BOOM_Y/2,0);scene.add(cpole);
-// Base foot plate
 const cfoot=mkBox(0.4,0.05,0.4,0x1a2535,0.7,0.3);
 cfoot.position.set(CAM_POLE_X,0.025,0);scene.add(cfoot);
-// Horizontal boom from pole top inward to platform center
 const boomLen=CAM_POLE_X-CAM_BOOM_END_X;
 const camBar=mkBox(boomLen,0.07,0.07,0x1c2a3a,0.7,0.4);
 camBar.position.set((CAM_POLE_X+CAM_BOOM_END_X)/2,CAM_BOOM_Y,0);scene.add(camBar);
-// Gusset brace from pole to boom for realism
 const braceLen=Math.sqrt(1.2**2+1.2**2);
 const brace=mkBox(braceLen,0.04,0.04,0x1a2535,0.7,0.3);
 brace.position.set(CAM_POLE_X-0.6,CAM_BOOM_Y-0.6,0);
 brace.rotation.z=-Math.PI/4;scene.add(brace);
-// Short vertical drop bar at boom end, cameras hang below
 const dropBar=mkCyl(0.04,0.04,0.4,0x1c2a3a,0.6,0.4);
 dropBar.position.set(CAM_BOOM_END_X,CAM_BOOM_Y-0.2,0);scene.add(dropBar);
-// Small crossbar at bottom of drop for camera mounts
 const crossBar=mkBox(BASELINE*2+0.3,0.05,0.05,0x1c2a3a,0.6,0.4);
 crossBar.position.set(CAM_BOOM_END_X,CAM_BASE_Y,0);scene.add(crossBar);
-// Camera bodies hanging below crossbar
 [-BASELINE,BASELINE].forEach(x=>{
   const g=new THREE.Group();g.position.set(CAM_BOOM_END_X+x,CAM_BASE_Y,0);
   g.add(mkBox(0.18,0.14,0.22,0x1c2a3a,0.6,0.45));
-  // Lens pointing down
   const l=mkCyl(0.045,0.045,0.1,0x080808,0.1,0.8);
   l.rotation.x=Math.PI/2;l.position.set(0,-0.09,0);g.add(l);
   scene.add(g);
@@ -411,16 +412,14 @@ const stereoL=new THREE.PerspectiveCamera(52,CAM_W/CAM_H,0.1,20);
 stereoL.position.set(CAM_BOOM_END_X-BASELINE,CAM_BASE_Y,CAM_BASE_Z);
 const stereoR=new THREE.PerspectiveCamera(52,CAM_W/CAM_H,0.1,20);
 stereoR.position.set(CAM_BOOM_END_X+BASELINE,CAM_BASE_Y,CAM_BASE_Z);
-// Straight down — right vector = world +X, epipolar lines perfectly horizontal
 stereoL.up.set(0,0,1); stereoL.lookAt(stereoL.position.x,0,stereoL.position.z);
 stereoR.up.set(0,0,1); stereoR.lookAt(stereoR.position.x,0,stereoR.position.z);
 stereoR.quaternion.copy(stereoL.quaternion);
 
-// Derived stereo intrinsics
 const FOV_RAD=52*Math.PI/180;
-const FOCAL_PX=CAM_H/(2*Math.tan(FOV_RAD/2)); // focal length in pixels
-const BASELINE_M=BASELINE*2; // scene units ≈ meters
-const DEPTH_MIN=5.5,DEPTH_MAX=7.5; // platform ~6.4m, parts ~6.2m
+const FOCAL_PX=CAM_H/(2*Math.tan(FOV_RAD/2));
+const BASELINE_M=BASELINE*2;
+const DEPTH_MIN=5.5,DEPTH_MAX=7.5;
 
 const beam=new THREE.Mesh(new THREE.ConeGeometry(1.6,3.8,18,1,true),new THREE.MeshBasicMaterial({color:0x60b4ff,transparent:true,opacity:0,side:THREE.DoubleSide}));
 beam.position.set(0,3.7,CAM_BASE_Z);beam.rotation.x=Math.PI;scene.add(beam);
@@ -486,8 +485,7 @@ function makePart(px,pz,idx){
   if(t===0)geo=new THREE.BoxGeometry(0.24,0.18,0.28);
   else if(t===1)geo=new THREE.CylinderGeometry(0.13,0.13,0.24,14);
   else geo=new THREE.SphereGeometry(0.14,14,10);
-  // per-part roughness variation — gives stereo matcher more surface variation to grip
-  const roughness=0.25+((idx*7+t*3)%10)*0.06; // 0.25–0.85 deterministic per part
+  const roughness=0.25+((idx*7+t*3)%10)*0.06;
   const m=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:PCOLS[idx%PCOLS.length],roughness,metalness:0.25}));
   m.castShadow=m.receiveShadow=true;
   const hh=partHH(t);
@@ -519,11 +517,15 @@ cvs.addEventListener('mousemove',e=>{
 cvs.addEventListener('wheel',e=>{camR=clamp(camR+e.deltaY*0.010,4,30);updCam();e.preventDefault();},{passive:false});
 function tickCamInertia(){if(drag||panning)return;if(Math.abs(velT)<0.0001&&Math.abs(velP)<0.0001)return;velT*=0.88;velP*=0.88;camT+=velT;camP=clamp(camP+velP,0.06,1.25);updCam();}
 
-new ResizeObserver(entries=>{const{width,height}=entries[0].contentRect;if(width<1||height<1)return;renderer.setSize(width,height);camera.aspect=width/height;camera.updateProjectionMatrix();}).observe(cw);
-// (viewport height handle removed)
-{const lrh=document.getElementById('lrh'),lw=document.getElementById('lw');let rsz=false,rsyStart=0,rshStart=0;lrh.addEventListener('mousedown',e=>{rsz=true;rsyStart=e.clientY;rshStart=lw.clientHeight;document.body.style.cursor='ns-resize';e.preventDefault();});document.addEventListener('mousemove',e=>{if(!rsz)return;lw.style.height=Math.max(60,Math.min(600,rshStart+(e.clientY-rsyStart)))+'px';});document.addEventListener('mouseup',()=>{rsz=false;document.body.style.cursor='';});}
+new ResizeObserver(entries=>{
+  const{width,height}=entries[0].contentRect;
+  if(width<1||height<1)return;
+  renderer.setSize(width,height);
+  camera.aspect=width/height;
+  camera.updateProjectionMatrix();
+}).observe(cw);
 
-// (width handle removed — layout auto-sizes)
+{const lrh=document.getElementById('lrh'),lw=document.getElementById('lw');let rsz=false,rsyStart=0,rshStart=0;lrh.addEventListener('mousedown',e=>{rsz=true;rsyStart=e.clientY;rshStart=lw.clientHeight;document.body.style.cursor='ns-resize';e.preventDefault();});document.addEventListener('mousemove',e=>{if(!rsz)return;lw.style.height=Math.max(60,Math.min(600,rshStart+(e.clientY-rsyStart)))+'px';});document.addEventListener('mouseup',()=>{rsz=false;document.body.style.cursor='';});}
 
 const logEl=document.getElementById('lw');
 function log(msg,cls='info'){const now=new Date();const ts=now.toTimeString().slice(0,8)+'.'+String(now.getMilliseconds()).padStart(3,'0');const d=document.createElement('div');d.className='ll '+cls;d.innerHTML=`<span class="ts">[${ts}]</span><span class="ms">${msg}</span>`;logEl.appendChild(d);while(logEl.children.length>120)logEl.removeChild(logEl.firstChild);logEl.scrollTop=logEl.scrollHeight;}
@@ -541,7 +543,6 @@ function updStats(){
 const DIAG_POSES=[{x:-0.3,y:PLAT_TOP+0.8,z:-0.3},{x:0.5,y:PLAT_TOP+0.8,z:-0.3},{x:0.5,y:PLAT_TOP+1.4,z:0.5},{x:-0.3,y:PLAT_TOP+1.4,z:0.5},{x:0.1,y:PLAT_TOP+0.5,z:0.1},{x:0.6,y:PLAT_TOP+1.0,z:-0.1}];
 let diagState='idle',diagPoseIdx=0,diagErrors=[],diagPoseT=0,diagMarker=null;
 
-// ── PATH VISUALIZATION ────────────────────────────────────────────────────
 let pathOrigLine=null,pathActualLine=null,pathWpMarkers=[];
 let pathVisible=true;
 function togglePath(){
@@ -553,45 +554,35 @@ function togglePath(){
   if(pathActualLine)pathActualLine.visible=pathVisible;
   pathWpMarkers.forEach(m=>{if(m.visible!==undefined)m.visible=pathVisible;});
 }
-let pathOrigPts=null; // saved original waypoints for replan comparison
-let actualPathPts=[]; // growing list of cupFace positions
+let pathOrigPts=null;
+let actualPathPts=[];
 let pathReplanned=false;
 
-const PATH_WP_COLS={
-  approach:0xfb923c,pick:0xf87171,lift:0x4ade80,
-  transit:0x34d399,place:0x34d399,home:0x7dc8ff
-};
+const PATH_WP_COLS={approach:0xfb923c,pick:0xf87171,lift:0x4ade80,transit:0x34d399,place:0x34d399,home:0x7dc8ff};
 
 function v3(wp){return new THREE.Vector3(wp.x,wp.y,wp.z);}
 
 function buildOrigPath(wps){
-  // wps: array of {pos,label,col}
   if(pathOrigLine){scene.remove(pathOrigLine);pathOrigLine=null;}
   pathWpMarkers.forEach(m=>scene.remove(m));pathWpMarkers=[];
-
   const pts=wps.map(w=>w.pos);
   const geo=new THREE.BufferGeometry().setFromPoints(pts);
   pathOrigLine=new THREE.Line(geo,new THREE.LineBasicMaterial({color:0xfb923c,opacity:0.5,transparent:true}));
   pathOrigLine.visible=pathVisible;
   scene.add(pathOrigLine);
-
-  // Sphere at each waypoint
   wps.forEach(w=>{
-    const m=new THREE.Mesh(new THREE.SphereGeometry(0.07,8,8),
-      new THREE.MeshBasicMaterial({color:w.col,opacity:0.85,transparent:true}));
+    const m=new THREE.Mesh(new THREE.SphereGeometry(0.07,8,8),new THREE.MeshBasicMaterial({color:w.col,opacity:0.85,transparent:true}));
     m.position.copy(w.pos);m.visible=pathVisible;scene.add(m);pathWpMarkers.push(m);
-    // Label sprite via canvas
   });
 }
 
 function buildReplanPath(wps){
-  // Draw new dashed-style path in amber alongside original
   const pts=wps.map(w=>w.pos);
   const geo=new THREE.BufferGeometry().setFromPoints(pts);
   const replanLine=new THREE.Line(geo,new THREE.LineBasicMaterial({color:0xf5a623,opacity:0.9,transparent:true}));
   replanLine.visible=pathVisible;
   scene.add(replanLine);
-  pathWpMarkers.push(replanLine); // reuse cleanup array
+  pathWpMarkers.push(replanLine);
   document.getElementById('wp-replan-lbl').textContent='⚠ REPLANNED';
   document.getElementById('wp-replan-lbl').style.color='#f5a623';
   pathReplanned=true;
@@ -631,7 +622,6 @@ function getPlannedWps(){
   ];
 }
 
-// Waypoint strip helpers
 const WP_NODE_IDS=Array.from({length:14},(_,i)=>`wpn-${i}`);
 function resetWpStrip(){WP_NODE_IDS.forEach(id=>{const el=document.getElementById(id);if(el)el.className='wpnode';});}
 function setWpActive(idx){const el=document.getElementById(`wpn-${idx}`);if(el)el.className='wpnode active';}
@@ -697,9 +687,7 @@ function injectFault(){
   document.getElementById('dlbl').className='badge wn';
   updStats();
   log('FAULT injected — reproj: 2.3px — all vision panels degraded','err');
-  // Simulate path replan: shift transit midpoint to avoid phantom obstacle
   if(WPM&&pathOrigPts&&!pathReplanned){
-    const oldWPM={...WPM};
     WPM={x:WPM.x+0.6,y:WPM.y+0.5,z:WPM.z-0.4};
     log(`PATH REPLAN — transit midpoint shifted (obstacle detected)`,'warn');
     buildReplanPath(getPlannedWps());
@@ -714,9 +702,7 @@ function injectFault(){
   },4500);
 }
 
-// ── COLORMAPS ─────────────────────────────────────────────────────────────
 function colmapTurbo(t){
-  // turbo approximation: blue→cyan→green→yellow→red
   t=clamp(t,0,1);
   let r,g,b;
   if(t<0.25){r=0;g=Math.round(t*4*180);b=Math.round(80+t*4*175);}
@@ -726,9 +712,7 @@ function colmapTurbo(t){
   return[r,g,b];
 }
 function colmapDepth(t){
-  // perceptual: black→deep blue→cyan→white for near, fading to purple for far
-  // near=0.3m (t=0)→vivid, far=8m (t=1)→dark
-  t=clamp(1-t,0,1); // invert: near=bright
+  t=clamp(1-t,0,1);
   let r,g,b;
   if(t<0.2){r=0;g=0;b=Math.round(t*5*120);}
   else if(t<0.45){const u=(t-0.2)/0.25;r=Math.round(u*20);g=Math.round(u*180);b=Math.round(120+u*135);}
@@ -737,7 +721,6 @@ function colmapDepth(t){
   return[r,g,b];
 }
 
-// Build legend gradients
 function buildGradient(el,fn,steps=32){
   const stops=[];for(let i=0;i<=steps;i++){const t=i/steps;const[r,g,b]=fn(t);stops.push(`rgb(${r},${g},${b}) ${(t*100).toFixed(0)}%`);}
   el.style.background=`linear-gradient(to right,${stops.join(',')})`;
@@ -745,7 +728,6 @@ function buildGradient(el,fn,steps=32){
 buildGradient(document.getElementById('disp-grad'),t=>colmapTurbo(t));
 buildGradient(document.getElementById('depth-grad'),t=>colmapDepth(t));
 
-// ── CANVAS CONTEXTS ───────────────────────────────────────────────────────
 const vlCtx=document.getElementById('vl').getContext('2d');
 const vrCtx=document.getElementById('vr').getContext('2d');
 const vdCtx=document.getElementById('vd').getContext('2d');
@@ -760,15 +742,13 @@ function drawRawCam(ctx,pix){
 }
 
 function computeDisparity(fault){
-  const MAX_DISP=128; // scene disparity: f×B/Z = 246×1.7/5.08 ≈ 82px — must exceed this
+  const MAX_DISP=128;
   const idDisp=vdCtx.createImageData(CAM_W,CAM_H);
   const idDepth=vdepthCtx.createImageData(CAM_W,CAM_H);
   disparityBuf.fill(0);
   let validDepthCount=0,depthMin=9999,depthMax=0;
 
   if(useSGBM&&cvReady&&sgbm&&!fault){
-    // ── OpenCV.js StereoSGBM ─────────────────────────────────────────────
-    // Flip rows: WebGL readPixels gives bottom-up, OpenCV needs top-down
     const rgbaL=new Uint8Array(CAM_W*CAM_H*4),rgbaR=new Uint8Array(CAM_W*CAM_H*4);
     for(let y=0;y<CAM_H;y++){const sy=CAM_H-1-y;for(let x=0;x<CAM_W;x++){const s=(sy*CAM_W+x)*4,d=(y*CAM_W+x)*4;rgbaL[d]=pixL[s];rgbaL[d+1]=pixL[s+1];rgbaL[d+2]=pixL[s+2];rgbaL[d+3]=255;rgbaR[d]=pixR[s];rgbaR[d+1]=pixR[s+1];rgbaR[d+2]=pixR[s+2];rgbaR[d+3]=255;}}
     const matL=cv.matFromArray(CAM_H,CAM_W,cv.CV_8UC4,rgbaL);
@@ -776,10 +756,10 @@ function computeDisparity(fault){
     const gL=new cv.Mat(),gR=new cv.Mat(),dispMat=new cv.Mat();
     cv.cvtColor(matL,gL,cv.COLOR_RGBA2GRAY);
     cv.cvtColor(matR,gR,cv.COLOR_RGBA2GRAY);
-    sgbm.compute(gL,gR,dispMat); // output CV_16S: value = disparity × 16
+    sgbm.compute(gL,gR,dispMat);
     const d16=dispMat.data16S;
     for(let i=0;i<CAM_H*CAM_W;i++){
-      const disp=d16[i]>0?d16[i]/16:0; // fixed-point → pixels
+      const disp=d16[i]>0?d16[i]/16:0;
       disparityBuf[i]=disp;
       const dn=disp/MAX_DISP;
       const[dr,dg,db]=disp>0?colmapTurbo(dn):[8,8,12];
@@ -792,15 +772,12 @@ function computeDisparity(fault){
     }
     matL.delete();matR.delete();gL.delete();gR.delete();dispMat.delete();
   } else {
-    // ── Improved SAD: luminance grayscale (opt 2) + L-R consistency (opt 1) ─
-    // Option 2: proper luminance-weighted grayscale (single channel, better than raw RGB sum)
     for(let y=0;y<CAM_H;y++){const fy=CAM_H-1-y;for(let x=0;x<CAM_W;x++){const i=(fy*CAM_W+x)*4;grayL[y*CAM_W+x]=0.299*pixL[i]+0.587*pixL[i+1]+0.114*pixL[i+2];grayR[y*CAM_W+x]=0.299*pixR[i]+0.587*pixR[i+1]+0.114*pixR[i+2];}}
-    const HALF=4,STEP=4; // block=9, 9 sample pairs (3×3 at step 4)
+    const HALF=4,STEP=4;
     const SAMPLES=9,MIN_SAD_THRESH=SAMPLES*8,UNIQUENESS=0.90;
-    const RL_MIN_X=HALF+MAX_DISP; // leftmost right-image x covered by R→L pass
+    const RL_MIN_X=HALF+MAX_DISP;
     const gL=(x,y)=>(x<0||x>=CAM_W||y<0||y>=CAM_H)?0:grayL[y*CAM_W+x];
     const gR=(x,y)=>(x<0||x>=CAM_W||y<0||y>=CAM_H)?0:grayR[y*CAM_W+x];
-    // L→R pass
     dspLR.fill(0);
     for(let y=HALF;y<CAM_H-HALF;y+=STEP){
       for(let x=HALF;x<CAM_W-HALF-MAX_DISP;x+=STEP){
@@ -810,7 +787,6 @@ function computeDisparity(fault){
         for(let oy=0;oy<STEP;oy++)for(let ox=0;ox<STEP;ox++){const py=y+oy,px=x+ox;if(py<CAM_H&&px<CAM_W)dspLR[py*CAM_W+px]=v;}
       }
     }
-    // Option 1: R→L pass for L-R consistency (skipped in fault mode — let noise through)
     if(!fault){
       dspRL.fill(0);
       for(let y=HALF;y<CAM_H-HALF;y+=STEP){
@@ -822,7 +798,6 @@ function computeDisparity(fault){
         }
       }
     }
-    // Combine: L-R consistency check, then colormap all pixels
     for(let y=0;y<CAM_H;y++){
       for(let x=0;x<CAM_W;x++){
         const dLR=dspLR[y*CAM_W+x];
@@ -833,7 +808,7 @@ function computeDisparity(fault){
         } else {
           if(dLR>0){
             const rx=x+Math.round(dLR);
-            if(rx<RL_MIN_X||rx>=CAM_W){disp=dLR;} // outside R→L coverage, trust L→R
+            if(rx<RL_MIN_X||rx>=CAM_W){disp=dLR;}
             else{const dRL=dspRL[y*CAM_W+rx];disp=(Math.abs(dLR-dRL)<=2)?dLR:0;}
           }
         }
@@ -853,7 +828,6 @@ function computeDisparity(fault){
   vdCtx.putImageData(idDisp,0,0);
   vdepthCtx.putImageData(idDepth,0,0);
 
-  // ── shared overlays ────────────────────────────────────────────────────
   const algo=useSGBM&&cvReady&&!fault?cvAlgoName:'SAD+LR';
   vdCtx.font='10px monospace';vdCtx.fillStyle=fault?'rgba(0,0,0,0.7)':'rgba(0,0,0,0.55)';vdCtx.fillRect(0,0,CAM_W,15);
   vdCtx.fillStyle=fault?'#f5a623':'#4dffaa';
@@ -908,8 +882,6 @@ function drawDetections(fault){
     vdetCtx.strokeRect(bx+jx,by+jy,bw,bh);vdetCtx.setLineDash([]);
     vdetCtx.strokeStyle=fault?'#f5a623':col;vdetCtx.lineWidth=1;
     vdetCtx.beginPath();vdetCtx.moveTo(center.x+jx-5,center.y+jy);vdetCtx.lineTo(center.x+jx+5,center.y+jy);vdetCtx.moveTo(center.x+jx,center.y+jy-5);vdetCtx.lineTo(center.x+jx,center.y+jy+5);vdetCtx.stroke();
-
-    // depth readout from disparity buffer at projected center
     if(!fault){
       const px2=clamp(Math.round(center.x),0,CAM_W-1),py2=clamp(Math.round(center.y),0,CAM_H-1);
       const d=disparityBuf[py2*CAM_W+px2];
@@ -946,50 +918,36 @@ function buildPointCloud(fault){
   for(let i=0;i<=8;i++){const x=i/8*W,y=i/8*H;vpcCtx.beginPath();vpcCtx.moveTo(x,0);vpcCtx.lineTo(x,H);vpcCtx.stroke();vpcCtx.beginPath();vpcCtx.moveTo(0,y);vpcCtx.lineTo(W,y);vpcCtx.stroke();}
 
   function toScreen(wx,wz){return{sx:(-wx+2.5)/5.0*W,sy:(2.5-wz)/5.0*H};}
-  // platform boundary box
   const c0=toScreen(-2.1,-2.1),c3=toScreen(2.1,2.1);
   vpcCtx.strokeStyle='#1a3a5a';vpcCtx.lineWidth=1;vpcCtx.strokeRect(c0.sx,c0.sy,c3.sx-c0.sx,c3.sy-c0.sy);
   vpcCtx.fillStyle='#1a3a5a';vpcCtx.font='8px monospace';vpcCtx.fillText('platform',c0.sx+2,c0.sy+9);
 
-  // place / drop target box
   const pz=toScreen(PLACE.x-0.36,PLACE.z-0.36);
   vpcCtx.strokeStyle='#1a6a2a';vpcCtx.lineWidth=1;vpcCtx.strokeRect(pz.sx,pz.sy,(0.72/5.0)*W,(0.72/5.0)*H);
   vpcCtx.fillStyle='#1a6a2a';vpcCtx.font='8px monospace';vpcCtx.fillText('drop',pz.sx+2,pz.sy-2);
 
-  // ChArUco calibration board
   const brd=toScreen(1.5-0.36,1.5-0.36);
   vpcCtx.strokeStyle='#6a5a20';vpcCtx.lineWidth=1;vpcCtx.strokeRect(brd.sx,brd.sy,(0.72/5.0)*W,(0.72/5.0)*H);
   vpcCtx.fillStyle='#6a5a20';vpcCtx.font='8px monospace';vpcCtx.fillText('cal',brd.sx+2,brd.sy-2);
 
   pcPoints.forEach(pt=>{
     const{sx,sy}=toScreen(pt.x,pt.z);
-    // color by depth when valid, grey when faulted
-    let fillCol=pt.col;
-    if(!pt.valid){fillCol='#553300';}
-    else{
-      // overlay depth info: slightly adjust brightness based on depth
-      fillCol=pt.col;
-    }
-    vpcCtx.fillStyle=fillCol;
+    vpcCtx.fillStyle=pt.valid?pt.col:'#553300';
     vpcCtx.globalAlpha=fault?0.35:0.85;
     vpcCtx.beginPath();vpcCtx.arc(sx,sy,fault?1.5:2.5,0,Math.PI*2);vpcCtx.fill();
     vpcCtx.globalAlpha=1;
-
-    // depth label on valid points (sample every ~5th)
     if(!fault&&Math.random()<0.15&&pt.depth>0){
       vpcCtx.fillStyle='rgba(180,220,255,0.55)';vpcCtx.font='8px monospace';
       vpcCtx.fillText(`${pt.depth.toFixed(1)}m`,sx+4,sy-2);
     }
   });
 
-  // cameras — labeled L/R
   [{cx:-BASELINE,label:'L'},{cx:BASELINE,label:'R'}].forEach(({cx,label})=>{
     const{sx,sy}=toScreen(cx,CAM_BASE_Z);
     vpcCtx.fillStyle='#3aa8f0';vpcCtx.beginPath();vpcCtx.arc(sx,sy,4,0,Math.PI*2);vpcCtx.fill();
     vpcCtx.fillStyle='#3aa8f0';vpcCtx.font='8px monospace';vpcCtx.fillText('CAM'+label,sx-8,sy-6);
   });
 
-  // arm end effector crosshair + label
   const ef=toScreen(cupFace.x,cupFace.z);
   vpcCtx.strokeStyle='#7dc8ff';vpcCtx.lineWidth=1.5;vpcCtx.beginPath();vpcCtx.arc(ef.sx,ef.sy,5,0,Math.PI*2);vpcCtx.stroke();
   vpcCtx.beginPath();vpcCtx.moveTo(ef.sx-7,ef.sy);vpcCtx.lineTo(ef.sx+7,ef.sy);vpcCtx.moveTo(ef.sx,ef.sy-7);vpcCtx.lineTo(ef.sx,ef.sy+7);vpcCtx.stroke();
@@ -997,25 +955,22 @@ function buildPointCloud(fault){
 
   vpcCtx.font='9px monospace';vpcCtx.fillStyle=fault?'#aa4400':'#2a4a60';
   vpcCtx.fillText(fault?`${pcPoints.length}pts — depth unreliable`:`${pcPoints.length}pts`,4,H-4);
-  // axis labels
   vpcCtx.fillStyle='#2a4a60';vpcCtx.font='8px monospace';
   vpcCtx.fillText('←+X',W-26,H/2+4);
   vpcCtx.fillText('+Z↑',4,10);
   document.getElementById('pcstat').textContent=`${pcPoints.length} pts`;
 }
 
-// Timing state — use performance.now() for wall-clock accuracy regardless of frame rate
 let _3dFrameCount=0,_3dFpsDisplay=0;
 let _computeFrameCount=0,_computeFpsDisplay=0;
 let _dispFrameCount=0,_dispFpsDisplay=0;
 let _sadMs=0,_sadMsDisplay=0;
-const COMPUTE_INTERVAL=0.08;  // vision compute: ~12fps
-const DISPLAY_INTERVAL=0.15;  // panel display refresh: ~7fps
+const COMPUTE_INTERVAL=0.08;
+const DISPLAY_INTERVAL=0.15;
 let computeTimer=0,displayTimer=0;
 let _fpsWallLast=performance.now();
 
 function updateVisionPanels(dt,fault){
-  // --- Vision compute (SAD + depth) ---
   computeTimer+=dt;
   const doCompute=computeTimer>=COMPUTE_INTERVAL;
   if(doCompute){
@@ -1032,7 +987,6 @@ function updateVisionPanels(dt,fault){
     buildPointCloud(fault);
   }
 
-  // --- Display refresh (operator UI only) ---
   displayTimer+=dt;
   if(displayTimer>=DISPLAY_INTERVAL&&doCompute){
     displayTimer=0;
@@ -1043,7 +997,6 @@ function updateVisionPanels(dt,fault){
     document.getElementById('stat-fr').textContent=`baseline=${(BASELINE_M).toFixed(2)}m`;
   }
 
-  // --- FPS update every real second using wall clock ---
   const now=performance.now();
   const elapsed=(now-_fpsWallLast)/1000;
   if(elapsed>=1.0){
@@ -1081,7 +1034,6 @@ function animate(ts){
       beam.material.opacity=0.05+Math.sin(stateT*15)*0.025;vphT+=dt;if(vph<SCAN_DUR.length&&vphT>SCAN_DUR[vph]){vphT=0;vph++;}
       const names=['Frame capture','YOLOv8 detect','Depth+cloud','Pose ICP','Grasp lookup','IK solve'];
       setLbl(`[${Math.min(vph+1,6)}/14] ${names[Math.min(vph,5)]}`,'#7dc8ff');
-      // Advance step strip through steps 0-5 during scan
       resetWpStrip();
       for(let i=0;i<vph;i++)setWpDone(i);
       if(vph<6)setWpActive(vph);
@@ -1117,3 +1069,5 @@ log(`Stereo intrinsics: f=${FOCAL_PX.toFixed(1)}px  B=${BASELINE_M.toFixed(2)}m 
 log('Depth map: Z=(f×B)/disparity — metric scale 5.5–7.5m (narrow range for platform work zone)','ok');
 log(`Parts: ${parts.length} | Drag · scroll · right-drag pan`,'dim');
 </script>
+</body>
+</html>
