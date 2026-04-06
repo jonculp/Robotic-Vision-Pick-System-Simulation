@@ -64,6 +64,7 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
 .wpnode.done{color:#4ade80;border-color:#1a5030;background:#061008;}
 .wpnode.replanned{color:#f5a623;border-color:#f5a623;background:#1a0e00;}
 .wparrow{color:#1a2e44;padding:0 2px;font-size:8px;flex-shrink:0;align-self:center;}
+.dbar{display:flex;align-items:center;gap:4px;padding:2px 6px;}
 .dbar-grad{flex:1;height:6px;border-radius:2px;}
 .dbar-lbl{font-size:9px;color:#2e4a60;white-space:nowrap;}
 /* ── FONT SIZE SCALE ─────────────────────────────────────────────────── */
@@ -114,6 +115,7 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
       <button onclick="randomizeParts()">⟳ Randomize</button>
       <button class="wn" onclick="injectFault()">Inject fault</button>
       <button class="bg" id="btnpath" onclick="togglePath()">Path: ON</button>
+      <button class="bg" id="btnalgo" onclick="toggleAlgo()">Algo: SGBM</button>
       <div id="font-size-btn">
         <button id="fs-s" onclick="setFontSize('s')" style="font-size:10px;">S</button>
         <button id="fs-m" onclick="setFontSize('m')" style="font-size:12px;" class="active-size">M</button>
@@ -133,7 +135,7 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
     <span style="color:#2a4a60;">·</span>
     <span style="color:#4de080;">Vision compute <span id="t-compute" style="color:#c8e0f4;">— fps</span></span>
     <span style="color:#2a4a60;">·</span>
-    <span style="color:#f5a623;">SAD latency <span id="t-sad" style="color:#c8e0f4;">— ms</span></span>
+    <span style="color:#f5a623;">Disp latency <span id="t-sad" style="color:#c8e0f4;">— ms</span></span>
     <span style="color:#2a4a60;">·</span>
     <span style="color:#aa88ff;">Display refresh <span id="t-disp" style="color:#c8e0f4;">— fps</span></span>
   </div>
@@ -219,7 +221,7 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
     <div style="background:#061008;border:.5px solid #1a4028;border-left:2px solid #3de080;border-radius:4px;padding:8px 10px;">
       <div style="font-size:10px;color:#3de080;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Real algorithms</div>
       <ul style="list-style:none;display:flex;flex-direction:column;gap:3px;">
-        <li style="font-size:10px;color:#6ab88a;"><span style="color:#3de080;margin-right:5px;">✓</span>SAD block-match stereo disparity — real sliding window on rendered pixels</li>
+        <li style="font-size:10px;color:#6ab88a;"><span style="color:#3de080;margin-right:5px;">✓</span>SAD block-match &amp; OpenCV StereoBM/SGBM stereo disparity — real algorithms on rendered pixels</li>
         <li style="font-size:10px;color:#6ab88a;"><span style="color:#3de080;margin-right:5px;">✓</span>Z = f·B/d depth formula — real projective geometry from actual disparity</li>
         <li style="font-size:10px;color:#6ab88a;"><span style="color:#3de080;margin-right:5px;">✓</span>Point cloud built from per-pixel depth map</li>
         <li style="font-size:10px;color:#6ab88a;"><span style="color:#3de080;margin-right:5px;">✓</span>Stereo baseline geometry — two render targets at real physical offset</li>
@@ -242,6 +244,7 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
   <div style="height:12px;"></div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script async src="https://docs.opencv.org/4.9.0/opencv.js" onload="onOpenCvReady()"></script>
 <script>
 const cw=document.getElementById('cw');
 const renderer=new THREE.WebGLRenderer({canvas:document.getElementById('c'),antialias:true});
@@ -258,7 +261,44 @@ const rtL=new THREE.WebGLRenderTarget(CAM_W,CAM_H,{type:THREE.UnsignedByteType})
 const rtR=new THREE.WebGLRenderTarget(CAM_W,CAM_H,{type:THREE.UnsignedByteType});
 const pixL=new Uint8Array(CAM_W*CAM_H*4);
 const pixR=new Uint8Array(CAM_W*CAM_H*4);
-const disparityBuf=new Float32Array(CAM_W*CAM_H); // store raw disparity for depth conversion
+const disparityBuf=new Float32Array(CAM_W*CAM_H);
+const grayL=new Float32Array(CAM_W*CAM_H); // pre-allocated grayscale buffers
+const grayR=new Float32Array(CAM_W*CAM_H);
+const dspLR=new Float32Array(CAM_W*CAM_H); // L→R disparity pass
+const dspRL=new Float32Array(CAM_W*CAM_H); // R→L disparity pass (L-R consistency)
+let cvReady=false,sgbm=null,cvAlgoName='',useSGBM=true;
+function toggleAlgo(){
+  useSGBM=!useSGBM;
+  const btn=document.getElementById('btnalgo');
+  btn.textContent='Algo: '+(useSGBM?(cvAlgoName||'OpenCV'):'SAD');
+  btn.className=useSGBM?'bg':'';
+  log('Disparity algo → '+(useSGBM&&cvReady?cvAlgoName:'SAD block-match')+(useSGBM&&!cvReady?' (OpenCV not ready — using SAD)':''),'info');
+}
+function initSGBM(){
+  try{
+    const nd=128; // must be multiple of 16; scene disparity ~82px so need >82
+    if(typeof cv.StereoSGBM_create==='function'){
+      const bs=5;
+      sgbm=cv.StereoSGBM_create(0,nd,bs,8*bs*bs,32*bs*bs,1,63,10,100,32,2);
+      cvAlgoName='StereoSGBM';
+    } else if(typeof cv.StereoBM_create==='function'){
+      sgbm=cv.StereoBM_create(nd,15); // blockSize must be odd ≥5
+      cvAlgoName='StereoBM';
+    } else {
+      log('OpenCV: no stereo matcher found in this build','warn');return;
+    }
+    cvReady=true;
+    document.getElementById('btnalgo').textContent='Algo: '+cvAlgoName;
+    log('OpenCV.js ready — '+cvAlgoName+' active (replaces SAD)','ok');
+  }catch(e){log('OpenCV: stereo init failed: '+e.message,'warn');}
+}
+function onOpenCvReady(){
+  // Use window.cv to avoid any local variable shadowing
+  const ocv=window.cv;
+  if(ocv&&ocv.Mat){initSGBM();}
+  else if(ocv){ocv['onRuntimeInitialized']=initSGBM;}
+  else{window['onRuntimeInitialized']=initSGBM;}
+}
 
 const scene=new THREE.Scene();
 scene.fog=new THREE.FogExp2(0x080e18,0.038);
@@ -301,9 +341,28 @@ function mkCyl(rt,rb,h,col,r=0.5,m=0.35,s=16){const o=new THREE.Mesh(new THREE.C
 
 const PLAT_TOP=0.12;
 scene.add(new THREE.GridHelper(26,26,0x1a2a3a,0x0e1820));
-const plat=mkBox(4.2,0.24,4.2,0x263b52,0.65,0.25);plat.position.set(0,PLAT_TOP-0.12,0);scene.add(plat);
-const pe=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(4.2,0.24,4.2)),new THREE.LineBasicMaterial({color:0x3a6a9a}));pe.position.copy(plat.position);scene.add(pe);
-
+// Platform surface texture — fine dot grid for stereo texture richness
+(function(){
+  const S=512,c=document.createElement('canvas');c.width=c.height=S;
+  const ctx=c.getContext('2d');
+  // Random speckle pattern — aperiodic so stereo matcher finds unique unambiguous matches
+  // (regular grids cause false correspondences; random speckle does not)
+  const id=ctx.createImageData(S,S);
+  const base=[38,59,82]; // #263b52
+  for(let i=0;i<S*S;i++){
+    // Gaussian-ish speckle: sum of 3 uniform randoms
+    const n=((Math.random()+Math.random()+Math.random())-1.5)*38;
+    id.data[i*4  ]=clamp(base[0]+n,0,255);
+    id.data[i*4+1]=clamp(base[1]+n,0,255);
+    id.data[i*4+2]=clamp(base[2]+n,0,255);
+    id.data[i*4+3]=255;
+  }
+  ctx.putImageData(id,0,0);
+  const tex=new THREE.CanvasTexture(c);tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(2,2);
+  const plat=new THREE.Mesh(new THREE.BoxGeometry(4.2,0.24,4.2),new THREE.MeshStandardMaterial({map:tex,roughness:0.72,metalness:0.18}));
+  plat.castShadow=plat.receiveShadow=true;plat.position.set(0,PLAT_TOP-0.12,0);scene.add(plat);
+  const pe=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(4.2,0.24,4.2)),new THREE.LineBasicMaterial({color:0x3a6a9a}));pe.position.copy(plat.position);scene.add(pe);
+})();
 const PLACE={x:0.4,z:0.4};
 const td=mkCyl(0.36,0.36,0.015,0x1a4a2a,0.9,0);td.position.set(PLACE.x,PLAT_TOP+0.008,PLACE.z);scene.add(td);
 const tr=new THREE.Mesh(new THREE.TorusGeometry(0.36,0.015,8,32),new THREE.MeshStandardMaterial({color:0x2aaa4a,emissive:new THREE.Color(0x0a3a1a)}));tr.rotation.x=Math.PI/2;tr.position.set(PLACE.x,PLAT_TOP+0.015,PLACE.z);scene.add(tr);
@@ -427,7 +486,9 @@ function makePart(px,pz,idx){
   if(t===0)geo=new THREE.BoxGeometry(0.24,0.18,0.28);
   else if(t===1)geo=new THREE.CylinderGeometry(0.13,0.13,0.24,14);
   else geo=new THREE.SphereGeometry(0.14,14,10);
-  const m=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:PCOLS[idx%PCOLS.length],roughness:0.4,metalness:0.3}));
+  // per-part roughness variation — gives stereo matcher more surface variation to grip
+  const roughness=0.25+((idx*7+t*3)%10)*0.06; // 0.25–0.85 deterministic per part
+  const m=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:PCOLS[idx%PCOLS.length],roughness,metalness:0.25}));
   m.castShadow=m.receiveShadow=true;
   const hh=partHH(t);
   m.position.set(px,PLAT_TOP+hh,pz);m.rotation.y=Math.random()*Math.PI*2;
@@ -444,18 +505,18 @@ const CAM_TARGET=new THREE.Vector3(0.2,1.8,0);
 let camT=2.3,camP=0.38,camR=13,velT=0,velP=0;
 function updCam(){const x=CAM_TARGET.x+camR*Math.sin(camT)*Math.cos(camP);const y=CAM_TARGET.y+camR*Math.sin(camP);const z=CAM_TARGET.z+camR*Math.cos(camT)*Math.cos(camP);camera.position.set(x,y,z);camera.lookAt(CAM_TARGET);}
 updCam();
-const cv=document.getElementById('c');
+const cvs=document.getElementById('c');
 let drag=false,panning=false,lmx=0,lmy=0;
-cv.addEventListener('contextmenu',e=>e.preventDefault());
-cv.addEventListener('mousedown',e=>{if(e.button===2)panning=true;else{drag=true;velT=0;velP=0;}lmx=e.clientX;lmy=e.clientY;});
-cv.addEventListener('mouseup',()=>{drag=false;panning=false;});
-cv.addEventListener('mouseleave',()=>{panning=false;});
-cv.addEventListener('mousemove',e=>{
+cvs.addEventListener('contextmenu',e=>e.preventDefault());
+cvs.addEventListener('mousedown',e=>{if(e.button===2)panning=true;else{drag=true;velT=0;velP=0;}lmx=e.clientX;lmy=e.clientY;});
+cvs.addEventListener('mouseup',()=>{drag=false;panning=false;});
+cvs.addEventListener('mouseleave',()=>{panning=false;});
+cvs.addEventListener('mousemove',e=>{
   const dx=e.clientX-lmx,dy=e.clientY-lmy;lmx=e.clientX;lmy=e.clientY;
   if(drag){const dT=-dx*0.005,dP=dy*0.004;velT=lerp(velT,dT,0.35);velP=lerp(velP,dP,0.35);camT+=dT;camP=clamp(camP+dP,0.06,1.25);updCam();}
   if(panning){const right=new THREE.Vector3();right.crossVectors(camera.getWorldDirection(new THREE.Vector3()),camera.up).normalize();const sc=camR*0.0008;CAM_TARGET.addScaledVector(right,-dx*sc);CAM_TARGET.addScaledVector(camera.up,dy*sc);updCam();}
 });
-cv.addEventListener('wheel',e=>{camR=clamp(camR+e.deltaY*0.010,4,30);updCam();e.preventDefault();},{passive:false});
+cvs.addEventListener('wheel',e=>{camR=clamp(camR+e.deltaY*0.010,4,30);updCam();e.preventDefault();},{passive:false});
 function tickCamInertia(){if(drag||panning)return;if(Math.abs(velT)<0.0001&&Math.abs(velP)<0.0001)return;velT*=0.88;velP*=0.88;camT+=velT;camP=clamp(camP+velP,0.06,1.25);updCam();}
 
 new ResizeObserver(entries=>{const{width,height}=entries[0].contentRect;if(width<1||height<1)return;renderer.setSize(width,height);camera.aspect=width/height;camera.updateProjectionMatrix();}).observe(cw);
@@ -699,53 +760,89 @@ function drawRawCam(ctx,pix){
 }
 
 function computeDisparity(fault){
-  const BLOCK=9,HALF=Math.floor(BLOCK/2),MAX_DISP=64,STEP=4;
-  const UNIQUENESS=0.95;
-  const SAMPLES=Math.ceil(BLOCK/STEP)**2;
-  const MIN_SAD_THRESH=SAMPLES*12;
+  const MAX_DISP=128; // scene disparity: f×B/Z = 246×1.7/5.08 ≈ 82px — must exceed this
   const idDisp=vdCtx.createImageData(CAM_W,CAM_H);
   const idDepth=vdepthCtx.createImageData(CAM_W,CAM_H);
   disparityBuf.fill(0);
-
-  const getL=(x,y)=>{if(x<0||x>=CAM_W||y<0||y>=CAM_H)return[0,0,0];const fy=CAM_H-1-y;const i=(fy*CAM_W+x)*4;return[pixL[i],pixL[i+1],pixL[i+2]];};
-  const getR=(x,y)=>{if(x<0||x>=CAM_W||y<0||y>=CAM_H)return[0,0,0];const fy=CAM_H-1-y;const i=(fy*CAM_W+x)*4;return[pixR[i],pixR[i+1],pixR[i+2]];};
-
   let validDepthCount=0,depthMin=9999,depthMax=0;
 
-  for(let y=HALF;y<CAM_H-HALF;y+=STEP){
-    for(let x=HALF;x<CAM_W-HALF-MAX_DISP;x+=STEP){
-      let bestDisp=0,bestSAD=1e9,secondSAD=1e9;
-      for(let d=1;d<MAX_DISP;d++){
-        let sad=0;
-        for(let dy=-HALF;dy<=HALF;dy+=STEP){
-          for(let dx=-HALF;dx<=HALF;dx+=STEP){
-            const lp=getL(x+dx,y+dy);
-            const rp=getR(x+dx+d,y+dy);
-            sad+=Math.abs(lp[0]-rp[0])+Math.abs(lp[1]-rp[1])+Math.abs(lp[2]-rp[2]);
+  if(useSGBM&&cvReady&&sgbm&&!fault){
+    // ── OpenCV.js StereoSGBM ─────────────────────────────────────────────
+    // Flip rows: WebGL readPixels gives bottom-up, OpenCV needs top-down
+    const rgbaL=new Uint8Array(CAM_W*CAM_H*4),rgbaR=new Uint8Array(CAM_W*CAM_H*4);
+    for(let y=0;y<CAM_H;y++){const sy=CAM_H-1-y;for(let x=0;x<CAM_W;x++){const s=(sy*CAM_W+x)*4,d=(y*CAM_W+x)*4;rgbaL[d]=pixL[s];rgbaL[d+1]=pixL[s+1];rgbaL[d+2]=pixL[s+2];rgbaL[d+3]=255;rgbaR[d]=pixR[s];rgbaR[d+1]=pixR[s+1];rgbaR[d+2]=pixR[s+2];rgbaR[d+3]=255;}}
+    const matL=cv.matFromArray(CAM_H,CAM_W,cv.CV_8UC4,rgbaL);
+    const matR=cv.matFromArray(CAM_H,CAM_W,cv.CV_8UC4,rgbaR);
+    const gL=new cv.Mat(),gR=new cv.Mat(),dispMat=new cv.Mat();
+    cv.cvtColor(matL,gL,cv.COLOR_RGBA2GRAY);
+    cv.cvtColor(matR,gR,cv.COLOR_RGBA2GRAY);
+    sgbm.compute(gL,gR,dispMat); // output CV_16S: value = disparity × 16
+    const d16=dispMat.data16S;
+    for(let i=0;i<CAM_H*CAM_W;i++){
+      const disp=d16[i]>0?d16[i]/16:0; // fixed-point → pixels
+      disparityBuf[i]=disp;
+      const dn=disp/MAX_DISP;
+      const[dr,dg,db]=disp>0?colmapTurbo(dn):[8,8,12];
+      const pi=i*4;idDisp.data[pi]=dr;idDisp.data[pi+1]=dg;idDisp.data[pi+2]=db;idDisp.data[pi+3]=255;
+      let depthVal=0;
+      if(disp>0.5){depthVal=clamp((FOCAL_PX*BASELINE_M)/disp,DEPTH_MIN,DEPTH_MAX);validDepthCount++;if(depthVal<depthMin)depthMin=depthVal;if(depthVal>depthMax)depthMax=depthVal;}
+      const dn2=depthVal>0?(depthVal-DEPTH_MIN)/(DEPTH_MAX-DEPTH_MIN):1;
+      const[er,eg,eb]=depthVal>0?colmapDepth(dn2):[8,8,12];
+      idDepth.data[pi]=er;idDepth.data[pi+1]=eg;idDepth.data[pi+2]=eb;idDepth.data[pi+3]=255;
+    }
+    matL.delete();matR.delete();gL.delete();gR.delete();dispMat.delete();
+  } else {
+    // ── Improved SAD: luminance grayscale (opt 2) + L-R consistency (opt 1) ─
+    // Option 2: proper luminance-weighted grayscale (single channel, better than raw RGB sum)
+    for(let y=0;y<CAM_H;y++){const fy=CAM_H-1-y;for(let x=0;x<CAM_W;x++){const i=(fy*CAM_W+x)*4;grayL[y*CAM_W+x]=0.299*pixL[i]+0.587*pixL[i+1]+0.114*pixL[i+2];grayR[y*CAM_W+x]=0.299*pixR[i]+0.587*pixR[i+1]+0.114*pixR[i+2];}}
+    const HALF=4,STEP=4; // block=9, 9 sample pairs (3×3 at step 4)
+    const SAMPLES=9,MIN_SAD_THRESH=SAMPLES*8,UNIQUENESS=0.90;
+    const RL_MIN_X=HALF+MAX_DISP; // leftmost right-image x covered by R→L pass
+    const gL=(x,y)=>(x<0||x>=CAM_W||y<0||y>=CAM_H)?0:grayL[y*CAM_W+x];
+    const gR=(x,y)=>(x<0||x>=CAM_W||y<0||y>=CAM_H)?0:grayR[y*CAM_W+x];
+    // L→R pass
+    dspLR.fill(0);
+    for(let y=HALF;y<CAM_H-HALF;y+=STEP){
+      for(let x=HALF;x<CAM_W-HALF-MAX_DISP;x+=STEP){
+        let bD=0,bS=1e9,sS=1e9;
+        for(let d=1;d<MAX_DISP;d++){let s=0;for(let dy=-HALF;dy<=HALF;dy+=STEP)for(let dx=-HALF;dx<=HALF;dx+=STEP)s+=Math.abs(gL(x+dx,y+dy)-gR(x+dx+d,y+dy));if(s<bS){sS=bS;bS=s;bD=d;}else if(s<sS)sS=s;}
+        const v=bS<MIN_SAD_THRESH&&(sS===1e9||bS/sS<UNIQUENESS)?bD:0;
+        for(let oy=0;oy<STEP;oy++)for(let ox=0;ox<STEP;ox++){const py=y+oy,px=x+ox;if(py<CAM_H&&px<CAM_W)dspLR[py*CAM_W+px]=v;}
+      }
+    }
+    // Option 1: R→L pass for L-R consistency (skipped in fault mode — let noise through)
+    if(!fault){
+      dspRL.fill(0);
+      for(let y=HALF;y<CAM_H-HALF;y+=STEP){
+        for(let x=RL_MIN_X;x<CAM_W-HALF;x+=STEP){
+          let bD=0,bS=1e9,sS=1e9;
+          for(let d=1;d<MAX_DISP;d++){let s=0;for(let dy=-HALF;dy<=HALF;dy+=STEP)for(let dx=-HALF;dx<=HALF;dx+=STEP)s+=Math.abs(gR(x+dx,y+dy)-gL(x+dx-d,y+dy));if(s<bS){sS=bS;bS=s;bD=d;}else if(s<sS)sS=s;}
+          const v=bS<MIN_SAD_THRESH&&(sS===1e9||bS/sS<UNIQUENESS)?bD:0;
+          for(let oy=0;oy<STEP;oy++)for(let ox=0;ox<STEP;ox++){const py=y+oy,px=x+ox;if(py<CAM_H&&px<CAM_W)dspRL[py*CAM_W+px]=v;}
+        }
+      }
+    }
+    // Combine: L-R consistency check, then colormap all pixels
+    for(let y=0;y<CAM_H;y++){
+      for(let x=0;x<CAM_W;x++){
+        const dLR=dspLR[y*CAM_W+x];
+        let disp=0;
+        if(fault){
+          disp=dLR;
+          if(disp>0){disp=disp*(0.4+Math.random()*0.8)+(Math.random()-0.5)*MAX_DISP*0.5;disp=clamp(disp,0,MAX_DISP);}
+        } else {
+          if(dLR>0){
+            const rx=x+Math.round(dLR);
+            if(rx<RL_MIN_X||rx>=CAM_W){disp=dLR;} // outside R→L coverage, trust L→R
+            else{const dRL=dspRL[y*CAM_W+rx];disp=(Math.abs(dLR-dRL)<=2)?dLR:0;}
           }
         }
-        if(sad<bestSAD){secondSAD=bestSAD;bestSAD=sad;bestDisp=d;}
-        else if(sad<secondSAD){secondSAD=sad;}
-      }
-
-      const valid=bestSAD<MIN_SAD_THRESH&&(secondSAD===1e9||bestSAD/secondSAD<UNIQUENESS);
-      let disp=valid?bestDisp:0;
-      if(fault&&disp>0){disp=disp*(0.4+Math.random()*0.8)+(Math.random()-0.5)*MAX_DISP*0.5;disp=clamp(disp,0,MAX_DISP);}
-
-      // Fill STEP×STEP block
-      for(let oy=0;oy<STEP;oy++)for(let ox=0;ox<STEP;ox++){
-        const py=y+oy,px2=x+ox;if(py>=CAM_H||px2>=CAM_W)continue;
-        disparityBuf[py*CAM_W+px2]=disp;
+        disparityBuf[y*CAM_W+x]=disp;
         const dn=disp/MAX_DISP;
         const[dr,dg,db]=disp>0?colmapTurbo(dn):[8,8,12];
-        const pi=(py*CAM_W+px2)*4;idDisp.data[pi]=dr;idDisp.data[pi+1]=dg;idDisp.data[pi+2]=db;idDisp.data[pi+3]=255;
+        const pi=(y*CAM_W+x)*4;idDisp.data[pi]=dr;idDisp.data[pi+1]=dg;idDisp.data[pi+2]=db;idDisp.data[pi+3]=255;
         let depthVal=0;
-        if(disp>0.5){
-          depthVal=clamp((FOCAL_PX*BASELINE_M)/disp,DEPTH_MIN,DEPTH_MAX);
-          validDepthCount++;
-          if(depthVal<depthMin)depthMin=depthVal;
-          if(depthVal>depthMax)depthMax=depthVal;
-        }
+        if(disp>0.5){depthVal=clamp((FOCAL_PX*BASELINE_M)/disp,DEPTH_MIN,DEPTH_MAX);validDepthCount++;if(depthVal<depthMin)depthMin=depthVal;if(depthVal>depthMax)depthMax=depthVal;}
         const dn2=depthVal>0?(depthVal-DEPTH_MIN)/(DEPTH_MAX-DEPTH_MIN):1;
         const[er,eg,eb]=depthVal>0?colmapDepth(dn2):[8,8,12];
         idDepth.data[pi]=er;idDepth.data[pi+1]=eg;idDepth.data[pi+2]=eb;idDepth.data[pi+3]=255;
@@ -756,13 +853,13 @@ function computeDisparity(fault){
   vdCtx.putImageData(idDisp,0,0);
   vdepthCtx.putImageData(idDepth,0,0);
 
-  // disparity overlay
+  // ── shared overlays ────────────────────────────────────────────────────
+  const algo=useSGBM&&cvReady&&!fault?cvAlgoName:'SAD+LR';
   vdCtx.font='10px monospace';vdCtx.fillStyle=fault?'rgba(0,0,0,0.7)':'rgba(0,0,0,0.55)';vdCtx.fillRect(0,0,CAM_W,15);
   vdCtx.fillStyle=fault?'#f5a623':'#4dffaa';
-  vdCtx.fillText(fault?'FAULT — disparity degraded':`SAD block-match  max=${MAX_DISP}px`,4,11);
+  vdCtx.fillText(fault?'FAULT — disparity degraded':`${algo}  max=${MAX_DISP}px`,4,11);
   document.getElementById('disp-dot').classList.toggle('live',!fault);
 
-  // depth overlay: show range and a depth reading at center
   const cx=Math.floor(CAM_W/2),cy=Math.floor(CAM_H/2);
   const cDepth=(FOCAL_PX*BASELINE_M)/Math.max(disparityBuf[cy*CAM_W+cx],0.5);
   const cDepthClamped=clamp(cDepth,DEPTH_MIN,DEPTH_MAX);
@@ -770,7 +867,6 @@ function computeDisparity(fault){
   vdepthCtx.fillStyle=fault?'#f5a623':'#7dc8ff';
   vdepthCtx.fillText(fault?`FAULT — depth invalid`:`Z=(f×B)/d  range ${depthMin<9999?depthMin.toFixed(1):'—'}–${depthMax>0?depthMax.toFixed(1):'—'}m`,4,11);
 
-  // draw center crosshair + depth readout on depth map
   if(!fault&&validDepthCount>0){
     vdepthCtx.strokeStyle='rgba(255,255,255,0.6)';vdepthCtx.lineWidth=1;
     vdepthCtx.beginPath();vdepthCtx.moveTo(cx-10,cy);vdepthCtx.lineTo(cx+10,cy);vdepthCtx.moveTo(cx,cy-10);vdepthCtx.lineTo(cx,cy+10);vdepthCtx.stroke();
@@ -778,11 +874,8 @@ function computeDisparity(fault){
     vdepthCtx.fillStyle='#c8e8ff';vdepthCtx.font='9px monospace';
     vdepthCtx.fillText(`${cDepthClamped.toFixed(2)}m`,cx+6,cy-9);
   }
-
-  // depth uncertainty rings: show near/far zones
   if(!fault){
     vdepthCtx.strokeStyle='rgba(255,200,100,0.25)';vdepthCtx.lineWidth=1;vdepthCtx.setLineDash([3,3]);
-    // mark working zone boundary — rough horizontal band
     const y03=Math.round(CAM_H*0.35),y08=Math.round(CAM_H*0.65);
     vdepthCtx.beginPath();vdepthCtx.moveTo(0,y03);vdepthCtx.lineTo(CAM_W,y03);vdepthCtx.stroke();
     vdepthCtx.beginPath();vdepthCtx.moveTo(0,y08);vdepthCtx.lineTo(CAM_W,y08);vdepthCtx.stroke();
@@ -793,7 +886,7 @@ function computeDisparity(fault){
 
   document.getElementById('depth-dot').classList.toggle('live',!fault);
   document.getElementById('stat-depth').textContent=fault?'invalid':`${validDepthCount} valid px`;
-  document.getElementById('stat-disp').textContent=`disp→depth via Z=fB/d`;
+  document.getElementById('stat-disp').textContent=useSGBM&&cvReady&&!fault?(cvAlgoName+' via OpenCV.js'):'SAD+LR via Z=fB/d';
 }
 
 function project3D(cam,worldPt){const v=worldPt.clone().project(cam);return{x:(v.x*0.5+0.5)*CAM_W,y:(-v.y*0.5+0.5)*CAM_H,inFrustum:v.z<1&&Math.abs(v.x)<1&&Math.abs(v.y)<1};}
