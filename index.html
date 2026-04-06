@@ -3,14 +3,19 @@
 body{background:#111418;min-height:100vh;}
 #root{width:100%;font-family:var(--font-mono,monospace);background:#07101a;padding:0 0 8px;}
 @media(min-width:980px){#root{width:80%;margin:0 auto;}}
-@media(min-width:1200px){
-  #main-area{display:grid;grid-template-columns:45fr 55fr;gap:6px;align-items:stretch;}
-  #vp-wrap{display:flex;flex-direction:column;align-self:stretch;}
-  #cw{width:100%;flex:1;aspect-ratio:unset !important;min-height:300px;max-height:none;}
+@media(min-width:1200px) and (min-height:900px){
+  html,body{height:100%;overflow:hidden;}
+  #root{height:100vh;display:flex;flex-direction:column;overflow:hidden;padding-bottom:0;}
+  #main-area{flex:1;min-height:0;display:grid;grid-template-columns:55fr 45fr;grid-template-rows:1fr;gap:6px;}
+  #vp-wrap{display:flex;flex-direction:column;min-height:0;overflow:hidden;}
+  #cw{width:100%;flex:1;aspect-ratio:unset !important;min-height:0;max-height:none;}
   #rh{display:none;}
-  .vgrid{grid-template-columns:1fr;}
-  .vpcanvas{aspect-ratio:4/3;height:auto;}
-  #panels-col{overflow-y:auto;max-height:90vh;}
+  #panels-col{display:flex;flex-direction:column;min-height:0;overflow:hidden;}
+  .vgrid{display:grid;grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(3,1fr);flex:1;min-height:0;gap:4px;margin:0;overflow:hidden;}
+  .vpanel{display:flex;flex-direction:column;min-height:0;overflow:hidden;}
+  .vpcanvas{flex:1;width:100%;min-height:0;aspect-ratio:unset !important;}
+  #lw{height:120px;max-height:120px;}
+  #lrh{display:none;}
 }
 #vp-wrap{position:relative;}
 #cw{width:100%;aspect-ratio:16/9;min-height:220px;border-radius:4px;overflow:hidden;position:relative;background:radial-gradient(ellipse at 60% 40%,#0f2035 0%,#080e18 60%,#04080f 100%);border:.5px solid #1a2e44;}
@@ -67,6 +72,7 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
 #root.fs-s .ll{font-size:10px;} #root.fs-s .wpnode{font-size:8px;}
 #root.fs-s .vphdr{font-size:9px;} #root.fs-s .vpstat{font-size:9px;} #root.fs-s .lbl2{font-size:9px;}
 #root.fs-s #timing-bar{font-size:9px;}
+#root.fs-s #rvf li,#root.fs-s #rvf>div>div:first-child{font-size:9px !important;}
 
 /* M = current L values (promoted to default M) */
 #root.fs-m .sl{font-size:12px;} #root.fs-m .sv{font-size:21px;} #root.fs-m .ss{font-size:12px;}
@@ -74,6 +80,7 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
 #root.fs-m .ll{font-size:14px;line-height:1.9;} #root.fs-m .wpnode{font-size:11px;padding:5px 8px;}
 #root.fs-m .vphdr{font-size:12px;} #root.fs-m .vpstat{font-size:12px;} #root.fs-m .lbl2{font-size:12px;}
 #root.fs-m #timing-bar{font-size:12px;}
+#root.fs-m #rvf li,#root.fs-m #rvf>div>div:first-child{font-size:12px !important;}
 
 /* L = new larger size */
 #root.fs-l .sl{font-size:14px;} #root.fs-l .sv{font-size:26px;} #root.fs-l .ss{font-size:13px;}
@@ -81,6 +88,7 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
 #root.fs-l .ll{font-size:16px;line-height:2.0;} #root.fs-l .wpnode{font-size:13px;padding:6px 10px;}
 #root.fs-l .vphdr{font-size:14px;} #root.fs-l .vpstat{font-size:13px;} #root.fs-l .lbl2{font-size:14px;}
 #root.fs-l #timing-bar{font-size:14px;}
+#root.fs-l #rvf li,#root.fs-l #rvf>div>div:first-child{font-size:14px !important;}
 
 #font-size-btn{display:flex;gap:2px;align-items:center;border:.5px solid #1a2e44;border-radius:4px;padding:2px;background:#080e18;}
 #font-size-btn button{padding:4px 8px;min-width:0;border-radius:3px;}
@@ -133,7 +141,7 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
   <!-- MIDDLE: 14-step pipeline strip -->
   <div id="pbar" style="display:none"><div id="pfill"></div></div>
   <div class="lbl2" style="margin-top:4px;">Pipeline</div>
-  <div id="wpstrip" style="display:flex;align-items:center;justify-content:flex-start;gap:0;padding:5px 8px;background:#060c14;border:.5px solid #0e1824;border-radius:3px;margin:4px 0;font-family:monospace;font-size:9px;overflow-x:auto;flex-wrap:nowrap;">
+  <div id="wpstrip" style="display:flex;align-items:center;justify-content:flex-start;gap:0;padding:5px 8px;background:#060c14;border:.5px solid #0e1824;border-radius:3px;margin:4px 0;font-family:monospace;font-size:9px;flex-wrap:wrap;row-gap:4px;">
     <div class="wpnode" id="wpn-0">Frame<br>capture</div><div class="wparrow">›</div>
     <div class="wpnode" id="wpn-1">YOLOv8<br>detect</div><div class="wparrow">›</div>
     <div class="wpnode" id="wpn-2">Depth+<br>cloud</div><div class="wparrow">›</div>
@@ -202,10 +210,36 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
     </div>
   </div>
 
-  <div class="lbl2" style="margin-top:6px;">System log</div>
+  <div class="lbl2" style="margin-top:4px;">System log</div>
   <div id="lw"></div>
   <div id="lrh"></div>
-  <div style="height:32px;"></div>
+
+  <!-- Real vs Faked -->
+  <div id="rvf" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px;">
+    <div style="background:#061008;border:.5px solid #1a4028;border-left:2px solid #3de080;border-radius:4px;padding:8px 10px;">
+      <div style="font-size:10px;color:#3de080;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Real algorithms</div>
+      <ul style="list-style:none;display:flex;flex-direction:column;gap:3px;">
+        <li style="font-size:10px;color:#6ab88a;"><span style="color:#3de080;margin-right:5px;">✓</span>SAD block-match stereo disparity — real sliding window on rendered pixels</li>
+        <li style="font-size:10px;color:#6ab88a;"><span style="color:#3de080;margin-right:5px;">✓</span>Z = f·B/d depth formula — real projective geometry from actual disparity</li>
+        <li style="font-size:10px;color:#6ab88a;"><span style="color:#3de080;margin-right:5px;">✓</span>Point cloud built from per-pixel depth map</li>
+        <li style="font-size:10px;color:#6ab88a;"><span style="color:#3de080;margin-right:5px;">✓</span>Stereo baseline geometry — two render targets at real physical offset</li>
+        <li style="font-size:10px;color:#6ab88a;"><span style="color:#3de080;margin-right:5px;">✓</span>IK waypoint interpolation &amp; pick cycle state machine with real timing</li>
+        <li style="font-size:10px;color:#6ab88a;"><span style="color:#3de080;margin-right:5px;">✓</span>Reprojection error metric from stereo calibration model</li>
+      </ul>
+    </div>
+    <div style="background:#0e0a02;border:.5px solid #4a3008;border-left:2px solid #f5a623;border-radius:4px;padding:8px 10px;">
+      <div style="font-size:10px;color:#f5a623;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Simulated / faked</div>
+      <ul style="list-style:none;display:flex;flex-direction:column;gap:3px;">
+        <li style="font-size:10px;color:#b89060;"><span style="color:#f5a623;margin-right:5px;">~</span>YOLOv8 detection — boxes sourced from known scene positions, no inference</li>
+        <li style="font-size:10px;color:#b89060;"><span style="color:#f5a623;margin-right:5px;">~</span>Pose / ICP — label shown, but pose taken directly from Three.js transforms</li>
+        <li style="font-size:10px;color:#b89060;"><span style="color:#f5a623;margin-right:5px;">~</span>Vacuum pick — proximity threshold, no seal force or pressure physics</li>
+        <li style="font-size:10px;color:#b89060;"><span style="color:#f5a623;margin-right:5px;">~</span>Sensor noise — no IMU drift, lens distortion, or calibration error accumulation</li>
+        <li style="font-size:10px;color:#b89060;"><span style="color:#f5a623;margin-right:5px;">~</span>Object geometry — simplified primitives, no real mesh complexity</li>
+        <li style="font-size:10px;color:#b89060;"><span style="color:#f5a623;margin-right:5px;">~</span>Fault injection — scripted failures, not stochastic hardware faults</li>
+      </ul>
+    </div>
+  </div>
+  <div style="height:12px;"></div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
