@@ -11,13 +11,7 @@ body{background:#111418;min-height:100vh;}
 @media(min-width:980px){#root{width:80%;margin:0 auto;}}
 @media(min-width:1200px) and (min-height:900px){
   #root{display:flex;flex-direction:column;padding-bottom:0;}
-  #main-area{
-    min-height:340px;
-    display:grid;
-    grid-template-columns:55fr 45fr;
-    grid-template-rows:1fr;
-    gap:6px;
-  }
+  #main-area{min-height:340px;display:grid;grid-template-columns:55fr 45fr;grid-template-rows:1fr;gap:6px;}
   #vp-wrap{display:flex;flex-direction:column;min-height:0;overflow:hidden;}
   #cw{width:100%;flex:1;aspect-ratio:unset !important;min-height:0;max-height:none;}
   #rh{display:none;}
@@ -63,13 +57,22 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
 .ll.ok .ms{color:#3fb87a;}.ll.info .ms{color:#4d96d8;}.ll.warn .ms{color:#d4843a;}.ll.err .ms{color:#d45050;}.ll.dim .ms{color:#2e4458;}
 .vgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin:6px 0;}
 .vpanel{background:#050a10;border:.5px solid #1a2e44;border-radius:4px;overflow:hidden;}
-.vphdr{font-size:10px;color:#4a6a88;text-transform:uppercase;letter-spacing:.07em;padding:5px 8px;background:#080e18;border-bottom:.5px solid #0e1824;display:flex;align-items:center;justify-content:space-between;overflow:hidden;gap:4px;}
+.vphdr{font-size:10px;color:#4a6a88;text-transform:uppercase;letter-spacing:.07em;padding:3px 5px;background:#080e18;border-bottom:.5px solid #0e1824;display:flex;align-items:center;justify-content:space-between;overflow:visible;gap:4px;min-height:24px;}
 .vphdr-left{display:flex;align-items:center;gap:6px;overflow:hidden;min-width:0;}
 .vphdr-left span.txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.vpstat{font-size:10px;color:#3aa8f0;white-space:nowrap;flex-shrink:1;min-width:0;overflow:hidden;text-overflow:ellipsis;max-width:52%;}
+.vpstat{font-size:10px;color:#3aa8f0;white-space:nowrap;flex-shrink:2;min-width:0;overflow:hidden;text-overflow:ellipsis;max-width:40%;}
 .vpdot{width:6px;height:6px;border-radius:50%;background:#1a3a5a;flex-shrink:0;}
 .vpdot.live{background:#3de080;}
 .vpcanvas{display:block;width:100%;height:auto;aspect-ratio:4/3;}
+/* Camera mode toggle button — !important on sizing to beat global button + fs scale overrides */
+.cam-toggle{font-size:9px !important;padding:1px 7px !important;margin:0 !important;line-height:1.6;border-radius:3px;background:#0a1828;border:.5px solid #2a5080;color:#7dc8ff;flex-shrink:0;min-width:56px;text-align:center;}
+.cam-toggle:hover:not(:disabled){background:#0f2038;border-color:#3a70a0;color:#aad4ff;}
+.cam-toggle.ir-mode{background:#0a1a10;border-color:#1a5030;color:#4ade80 !important;}
+.cam-toggle.combined-mode{background:#1a1408;border-color:#5a4010;color:#f5a623 !important;}
+button.ir-mode{background:linear-gradient(160deg,#0b1f10,#091a0e);border-color:#1a5030;color:#4ade80;}
+button.ir-mode:hover:not(:disabled){background:linear-gradient(160deg,#132a18,#0f2213);border-color:#2a6a38;}
+button.combined-mode{background:linear-gradient(160deg,#1a1408,#120e04);border-color:#5a4010;color:#f5a623;}
+button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241c08,#1a1406);border-color:#7a6014;}
 .wpnode{padding:4px 6px;border-radius:3px;border:.5px solid #1a2e44;color:#2a4a60;background:#080e18;white-space:nowrap;transition:all .3s;text-align:center;font-size:9px;line-height:1.4;display:flex;align-items:center;justify-content:center;}
 .wpnode.active{color:#fb923c;border-color:#fb923c;background:#1a0e04;box-shadow:0 0 6px rgba(251,146,60,.3);}
 .wpnode.done{color:#4ade80;border-color:#1a5030;background:#061008;}
@@ -140,6 +143,7 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
       <button onclick="randomizeParts()">⟳ Randomize</button>
       <button class="wn" onclick="injectFault()">Inject fault</button>
       <button class="bg" id="btnpath" onclick="togglePath()">Path: ON</button>
+      <button id="btncam" onclick="cycleCamMode()">Cam: RGB</button>
       <div id="font-size-btn">
         <button id="fs-s" onclick="setFontSize('s')" style="font-size:10px;">S</button>
         <button id="fs-m" onclick="setFontSize('m')" style="font-size:12px;" class="active-size">M</button>
@@ -198,29 +202,35 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
       </div>
       <div class="vgrid">
         <div class="vpanel">
-          <div class="vphdr"><div class="vphdr-left"><span class="vpdot live"></span><span class="txt">Left camera (raw)</span></div><span class="vpstat" id="stat-fl"></span></div>
+          <div class="vphdr">
+            <div class="vphdr-left"><span class="vpdot live"></span><span class="txt">Left camera</span></div>
+            <span class="vpstat" id="stat-fl"></span>
+          </div>
           <canvas class="vpcanvas" id="vl" width="320" height="240"></canvas>
         </div>
         <div class="vpanel">
-          <div class="vphdr"><div class="vphdr-left"><span class="vpdot live"></span><span class="txt">Right camera (raw)</span></div><span class="vpstat" id="stat-fr"></span></div>
+          <div class="vphdr">
+            <div class="vphdr-left"><span class="vpdot live"></span><span class="txt">Right camera</span></div>
+            <span class="vpstat" id="stat-fr"></span>
+          </div>
           <canvas class="vpcanvas" id="vr" width="320" height="240"></canvas>
         </div>
         <div class="vpanel">
           <div class="vphdr"><div class="vphdr-left"><span class="vpdot" id="disp-dot"></span><span class="txt">Disparity (computed)</span></div><span class="vpstat" id="stat-disp"></span></div>
           <canvas class="vpcanvas" id="vd" width="320" height="240"></canvas>
           <div class="dbar">
-            <span class="dbar-lbl">far</span>
+            <span class="dbar-lbl" id="dbar-far-label">far</span>
             <div class="dbar-grad" id="disp-grad"></div>
-            <span class="dbar-lbl">near</span>
+            <span class="dbar-lbl" id="dbar-near-label">near</span>
           </div>
         </div>
         <div class="vpanel">
           <div class="vphdr"><div class="vphdr-left"><span class="vpdot live" id="depth-dot"></span><span class="txt">Disparity (ground truth)</span></div><span class="vpstat" id="stat-depth"></span></div>
           <canvas class="vpcanvas" id="vdepth" width="320" height="240"></canvas>
           <div class="dbar">
-            <span class="dbar-lbl">far</span>
+            <span class="dbar-lbl" id="gtbar-far-label">far</span>
             <div class="dbar-grad" id="depth-grad"></div>
-            <span class="dbar-lbl">near</span>
+            <span class="dbar-lbl" id="gtbar-near-label">near</span>
           </div>
         </div>
         <div class="vpanel">
@@ -249,7 +259,6 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
         Each "epoch" blends the computed SAD disparity toward GT — illustrating how learned matching converges.
         <span style="color:#1a3a5a;">Not real gradient descent — a supervised convergence approximation for demonstration.</span>
       </div>
-      <!-- Controls + stats row -->
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
         <button id="nn-train-btn" class="bg" onclick="nnTrain()">▶ Train</button>
         <button onclick="nnReset()">Reset</button>
@@ -258,7 +267,6 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
         <div class="st" style="padding:5px 10px;flex:1;min-width:80px;"><div class="sl">Loss</div><div class="sv" id="nn-loss">—</div></div>
         <div class="st" style="padding:5px 10px;flex:1;min-width:80px;"><div class="sl">Blend</div><div class="sv" id="nn-blend">0%</div></div>
       </div>
-      <!-- Loss curve + model info side by side -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;align-items:start;">
         <div>
           <div class="nn-meta" style="color:#2a4a60;margin-bottom:3px;">Training loss curve</div>
@@ -279,31 +287,30 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
       </div>
       <div class="nn-meta" style="color:#2a4a60;margin-bottom:4px;">Model architecture</div>
       <canvas id="nn-arch-canvas" style="width:100%;height:180px;border:.5px solid #0e1824;border-radius:3px;background:#040810;display:block;"></canvas>
-      <!-- Architecture legend -->
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px 16px;margin-top:10px;align-items:start;">
         <div class="nn-meta" style="color:#2a4a60;line-height:1.8;">
           <div style="color:#3aa8f0;margin-bottom:3px;">▌ Encoder (left, blue)</div>
-          Each block <em>halves</em> the spatial resolution (320→160→80→40px) while <em>doubling</em> the number of feature channels (64→128→256). This forces the network to extract progressively more abstract features — edges become textures, textures become shapes. Block height in the diagram represents spatial size; the shrinking shape shows compression.
+          Each block halves the spatial resolution (320→160→80→40px) while doubling the number of feature channels (64→128→256). This forces the network to extract progressively more abstract features — edges become textures, textures become shapes.
         </div>
         <div class="nn-meta" style="color:#2a4a60;line-height:1.8;">
           <div style="color:#2a60a0;margin-bottom:3px;">▌ Bottleneck (center, bright blue)</div>
-          The smallest block — 512 channels at the lowest resolution. This is where the network's full understanding of the scene is encoded. Every pixel's disparity must be derivable from this compact representation. In production networks this is also where global context (scene layout, object boundaries) is captured.
+          The smallest block — 512 channels at the lowest resolution. This is where the network's full understanding of the scene is encoded. Every pixel's disparity must be derivable from this compact representation.
         </div>
         <div class="nn-meta" style="color:#2a4a60;line-height:1.8;">
           <div style="color:#3de080;margin-bottom:3px;">▌ Decoder (right, green)</div>
-          Mirrors the encoder in reverse — each block <em>upsamples</em> back toward full resolution, reducing channels. Without skip connections, fine detail lost during encoding cannot be recovered. The decoder reconstructs <em>where</em> disparity boundaries are; the encoder learned <em>what</em> caused them.
+          Mirrors the encoder in reverse — each block upsamples back toward full resolution, reducing channels. Skip connections preserve fine edge detail that would otherwise blur out during the compression-expansion cycle.
         </div>
         <div class="nn-meta" style="color:#2a4a60;line-height:1.8;">
           <div style="color:#7dc8ff;margin-bottom:3px;">▌ Skip connections (dashed lines)</div>
-          Direct shortcuts that copy encoder feature maps across to the matching decoder layer at the same resolution. They preserve fine edge detail (object outlines, surface texture boundaries) that would otherwise blur out during the compression-expansion cycle. This is the key innovation of U-Net over earlier encoder-decoder designs.
+          Direct shortcuts that copy encoder feature maps across to the matching decoder layer at the same resolution. They preserve fine edge detail (object outlines, surface texture boundaries) that would otherwise blur out.
         </div>
         <div class="nn-meta" style="color:#2a4a60;line-height:1.8;">
           <div style="color:#4a7a9a;margin-bottom:3px;">▌ Why ~85% accuracy ceiling?</div>
-          No stereo algorithm — learned or classical — can match pixels it cannot see. Occlusion boundaries (where one object hides another), featureless surfaces (plain walls, shadows), and specular highlights all produce invalid or ambiguous matches. Real RealSense and Azure Kinect cameras hit the same ceiling; they use IR dot patterns to reduce featureless regions, which is exactly what this sim's speckle texture approximates.
+          No stereo algorithm — learned or classical — can match pixels it cannot see. Occlusion boundaries, featureless surfaces, and specular highlights all produce invalid or ambiguous matches.
         </div>
         <div class="nn-meta" style="color:#2a4a60;line-height:1.8;">
           <div style="color:#4a7a9a;margin-bottom:3px;">▌ What this sim is actually doing</div>
-          The training here is not real backpropagation. Instead each epoch linearly blends the SAD disparity output toward the ground truth (GT) disparity from the GPU depth pass — approximating how a real network would converge. This lets you see what a trained network's output would look like relative to classical SAD, without running actual matrix multiplication on 42,000 pixels per frame in the browser.
+          Each epoch linearly blends the SAD disparity output toward the ground truth (GT) disparity from the GPU depth pass — approximating how a real network would converge.
         </div>
       </div>
     </div>
@@ -318,13 +325,13 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
     <div style="background:#061008;border:.5px solid #1a4028;border-left:2px solid #3de080;border-radius:4px;padding:8px 10px;">
       <div class="rvf-hdr" style="color:#3de080;">✓ Real — runs actual algorithms</div>
       <ul style="list-style:none;display:flex;flex-direction:column;gap:4px;">
-        <li class="rvf-li" style="color:#6ab88a;"><span style="color:#3de080;font-weight:600;">Stereo matching</span> <span style="color:#3a5a48;">— IR dot direct disparity: each dot's known 3D position is projected into both cameras, disparity = xL−xR exactly. Color-guided fill covers gaps between dots.</span></li>
+        <li class="rvf-li" style="color:#6ab88a;"><span style="color:#3de080;font-weight:600;">Stereo matching</span> <span style="color:#3a5a48;">— SAD full-res (STEP=1, HALF=4) with L-R consistency, median filter, color-guided fill. IR dots hard-set into grayscale buffer — not added — so they dominate block matching.</span></li>
         <li class="rvf-li" style="color:#6ab88a;"><span style="color:#3de080;font-weight:600;">Depth reconstruction</span> <span style="color:#3a5a48;">— Z = f·B/d, real projective geometry from actual disparity</span></li>
         <li class="rvf-li" style="color:#6ab88a;"><span style="color:#3de080;font-weight:600;">Point cloud</span> <span style="color:#3a5a48;">— built per-pixel from the depth map each frame</span></li>
-        <li class="rvf-li" style="color:#6ab88a;"><span style="color:#3de080;font-weight:600;">Camera baseline</span> <span style="color:#3a5a48;">— two independent render targets at real physical offset; aperiodic IR dot pattern stamped into pixel buffers pre-disparity, simulating active stereo illumination</span></li>
+        <li class="rvf-li" style="color:#6ab88a;"><span style="color:#3de080;font-weight:600;">Camera baseline</span> <span style="color:#3a5a48;">— two independent render targets at real physical offset; aperiodic IR dot pattern stamped into separate grayscale SAD buffers, not into RGB display buffers</span></li>
+        <li class="rvf-li" style="color:#6ab88a;"><span style="color:#3de080;font-weight:600;">IR / RGB / Combined view</span> <span style="color:#3a5a48;">— three separate pixel buffers per camera: RGB (render output), IR-only (dot pattern), grayscale+IR (SAD input). Toggle button on each camera panel cycles between them.</span></li>
         <li class="rvf-li" style="color:#6ab88a;"><span style="color:#3de080;font-weight:600;">Inverse kinematics</span> <span style="color:#3a5a48;">— analytic IK solver, waypoint interpolation, timed state machine</span></li>
-        <li class="rvf-li" style="color:#6ab88a;"><span style="color:#3de080;font-weight:600;">Reprojection error</span> <span style="color:#3a5a48;">— computed from stereo calibration model, triggers fault threshold</span></li>
-        <li class="rvf-li" style="color:#6ab88a;"><span style="color:#3de080;font-weight:600;">Ground truth disparity</span> <span style="color:#3a5a48;">— per-pixel exact d=fB/Z from GPU depth pass via stereoL; auto-ranged turbo colormap for direct comparison with computed disparity</span></li>
+        <li class="rvf-li" style="color:#6ab88a;"><span style="color:#3de080;font-weight:600;">Ground truth disparity</span> <span style="color:#3a5a48;">— per-pixel exact d=fB/Z from GPU depth pass via stereoL; auto-ranged turbo colormap</span></li>
       </ul>
     </div>
     <div style="background:#0e0a02;border:.5px solid #4a3008;border-left:2px solid #f5a623;border-radius:4px;padding:8px 10px;">
@@ -333,7 +340,7 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
         <li class="rvf-li" style="color:#b89060;"><span style="color:#f5a623;font-weight:600;">Object detection</span> <span style="color:#5a4020;">— bounding boxes from known scene positions, no YOLOv8 inference</span></li>
         <li class="rvf-li" style="color:#b89060;"><span style="color:#f5a623;font-weight:600;">Pose estimation</span> <span style="color:#5a4020;">— ICP label only; pose taken directly from Three.js transforms</span></li>
         <li class="rvf-li" style="color:#b89060;"><span style="color:#f5a623;font-weight:600;">Vacuum gripper</span> <span style="color:#5a4020;">— proximity threshold only; no seal force or pressure physics</span></li>
-        <li class="rvf-li" style="color:#b89060;"><span style="color:#f5a623;font-weight:600;">IR projector</span> <span style="color:#5a4020;">— emits visible white light stamped into pixel buffers; a real projector uses IR with bandpass-filtered cameras so the pattern is invisible to humans</span></li>
+        <li class="rvf-li" style="color:#b89060;"><span style="color:#f5a623;font-weight:600;">IR projector wavelength</span> <span style="color:#5a4020;">— IR display buffer shows white dots; real IR is invisible to human eyes and uses bandpass-filtered sensors</span></li>
         <li class="rvf-li" style="color:#b89060;"><span style="color:#f5a623;font-weight:600;">Part geometry</span> <span style="color:#5a4020;">— simple primitives; no real mesh complexity or surface texture</span></li>
         <li class="rvf-li" style="color:#b89060;"><span style="color:#f5a623;font-weight:600;">Fault injection</span> <span style="color:#5a4020;">— scripted degradation; not stochastic hardware faults</span></li>
       </ul>
@@ -345,19 +352,24 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
     <div class="lbl2" style="margin-bottom:8px;">How it works — key concepts</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px 16px;align-items:start;">
       <div class="hiw-card">
+        <div class="hiw-steps">camera panel toggle</div>
+        <span class="hiw-term">RGB / IR / Combined modes</span>
+        <span class="hiw-def"> — Each camera panel has a cycle button. RGB shows the raw Three.js render (color, no dots). IR shows only the structured-light dot pattern on a black field — exactly what a real IR camera sensor sees. Combined overlays the IR dots on the RGB image at ~85% opacity, showing how the projector illuminates the scene. The SAD matcher always uses the grayscale+IR buffer regardless of display mode.</span>
+      </div>
+      <div class="hiw-card">
+        <div class="hiw-steps">steps 1–2</div>
+        <span class="hiw-term">Hard-set IR stamping</span>
+        <span class="hiw-def"> — IR dots are now written into the SAD grayscale buffer with a hard set (pixel = 220) rather than additive blend. This ensures each dot creates a sharp, high-contrast anchor regardless of the underlying surface brightness. The block matcher sees a strong, repeatable signal at every dot location — producing far fewer disparity voids on uniform surfaces like the platform.</span>
+      </div>
+      <div class="hiw-card">
+        <div class="hiw-steps">steps 1–3</div>
+        <span class="hiw-term">SAD stereo matching (full-res)</span>
+        <span class="hiw-def"> — STEP reduced from 3 to 1 (every pixel), block half-size reduced from 6 to 4 (9×9 block). Smaller blocks respond better to point-feature IR dots without averaging them out. Full-res sampling means no sparse grid gaps for fill to bridge. Combined with hard-set IR, this closes most of the void regions visible in the previous version.</span>
+      </div>
+      <div class="hiw-card">
         <div class="hiw-steps">steps 1–2</div>
         <span class="hiw-term">Stereo vision</span>
-        <span class="hiw-def"> — Two cameras at a known horizontal offset (baseline). Each sees the same scene from a slightly different angle. Objects closer to the cameras appear shifted further apart between the two images (high disparity); distant objects shift less. An aperiodic dot pattern is stamped into both camera pixel buffers before matching runs, simulating an active stereo IR emitter — the same technique used by Intel RealSense.</span>
-      </div>
-      <div class="hiw-card">
-        <div class="hiw-steps">steps 1–2</div>
-        <span class="hiw-term">Active stereo IR pattern</span>
-        <span class="hiw-def"> — A Poisson disk IR dot pattern is projected onto the scene (platform, parts, arm) and stamped into the grayscale buffers used for stereo matching — but never into the RGB camera display. This mirrors real active-stereo cameras (RealSense, Azure Kinect): an IR projector emits a dot pattern invisible to human eyes and RGB cameras, while a dedicated IR camera pair uses it for matching. Poisson disk spacing guarantees every local patch is unique, giving the block matcher an unambiguous winner at each search position.</span>
-      </div>
-      <div class="hiw-card">
-        <div class="hiw-steps">step 3</div>
-        <span class="hiw-term">Disparity map</span>
-        <span class="hiw-def"> — For every pixel in the left image, the algorithm searches the right image on the same horizontal scanline to find the best match. The pixel shift (in px) is the disparity value. Shown here with a turbo colormap: blue = far, red = near.</span>
+        <span class="hiw-def"> — Two cameras at a known horizontal offset (baseline). Objects closer to the cameras appear shifted further apart between the two images (high disparity); distant objects shift less. An aperiodic dot pattern is stamped into both camera grayscale buffers before matching runs, simulating an active stereo IR emitter.</span>
       </div>
       <div class="hiw-card">
         <div class="hiw-steps">step 3</div>
@@ -367,17 +379,12 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
       <div class="hiw-card">
         <div class="hiw-steps">learned matching</div>
         <span class="hiw-term">U-Net learned stereo</span>
-        <span class="hiw-def"> — Production systems replace SAD/SGBM with a trained encoder-decoder network (U-Net architecture). The encoder extracts features at multiple scales; skip connections preserve fine edge detail; the decoder upsamples back to full resolution. Trained on GT disparity supervision — exactly the 42k px/frame ground truth this sim generates. The training simulation below shows convergence: voids fill in, noisy matches sharpen, accuracy asymptotes at ~85% (real network ceiling due to textureless regions and occlusion boundaries).</span>
-      </div>
-      <div class="hiw-card">
-        <div class="hiw-steps">steps 1–3</div>
-        <span class="hiw-term">SAD stereo matching</span>
-        <span class="hiw-def"> — Sum of Absolute Differences (SAD) compares pixel blocks between left and right images. An L-R consistency check discards unreliable matches, a median filter removes noise, and color-guided propagation fills gaps in uniform-color regions.</span>
+        <span class="hiw-def"> — Production systems replace SAD with a trained encoder-decoder network. The training simulation shows convergence: voids fill in, noisy matches sharpen, accuracy asymptotes at ~85% (real network ceiling due to textureless regions and occlusion boundaries).</span>
       </div>
       <div class="hiw-card">
         <div class="hiw-steps">disparity (GT)</div>
         <span class="hiw-term">Ground truth disparity</span>
-        <span class="hiw-def"> — A GPU depth pass from stereoL's exact position gives per-pixel true Z. Disparity is then derived as d = f·B/Z — the inverse of the depth formula. Auto-ranged so the small depth difference between parts (~6.1m) and platform (~6.4m) spreads across the full turbo colormap. Three zones: near-black = background; dark steel-blue = arm/rig structure; full colormap = work zone. Compare directly with the computed disparity panel to see exactly where the stereo algorithm loses information.</span>
+        <span class="hiw-def"> — A GPU depth pass from stereoL's exact position gives per-pixel true Z. Disparity is then derived as d = f·B/Z. Auto-ranged so the small depth difference between parts and platform spreads across the full turbo colormap. Compare directly with the computed disparity panel to see where the stereo algorithm loses information.</span>
       </div>
       <div class="hiw-card">
         <div class="hiw-steps">calibration</div>
@@ -407,7 +414,6 @@ function resizeMainArea(){
 }
 window.addEventListener('resize',resizeMainArea);
 window.addEventListener('resize',()=>{drawNNArch();drawLossCurve();});
-// Run after layout settles
 requestAnimationFrame(()=>requestAnimationFrame(resizeMainArea));
 
 const cw=document.getElementById('cw');
@@ -423,24 +429,30 @@ renderer.toneMappingExposure=0.88;
 const CAM_W=320,CAM_H=240;
 const rtL=new THREE.WebGLRenderTarget(CAM_W,CAM_H,{type:THREE.UnsignedByteType});
 const rtR=new THREE.WebGLRenderTarget(CAM_W,CAM_H,{type:THREE.UnsignedByteType});
+
+// ── THREE PIXEL BUFFERS PER CAMERA ───────────────────────────────────────
+// pixL/pixR      = grayscale + IR dots (SAD input)
+// pixL_rgb/pixR_rgb = raw RGB render output (display: RGB mode)
+// pixL_ir/pixR_ir   = IR dots only on black (display: IR mode)
 const pixL=new Uint8Array(CAM_W*CAM_H*4);
 const pixR=new Uint8Array(CAM_W*CAM_H*4);
+const pixL_rgb=new Uint8Array(CAM_W*CAM_H*4);
+const pixR_rgb=new Uint8Array(CAM_W*CAM_H*4);
+const pixL_ir=new Uint8Array(CAM_W*CAM_H*4);
+const pixR_ir=new Uint8Array(CAM_W*CAM_H*4);
+
 const disparityBuf=new Float32Array(CAM_W*CAM_H);
 const grayL=new Float32Array(CAM_W*CAM_H);
 const grayR=new Float32Array(CAM_W*CAM_H);
 const dspLR=new Float32Array(CAM_W*CAM_H);
 const dspRL=new Float32Array(CAM_W*CAM_H);
-// Scanline SGM: per-row buffers only — no full cost volume
-const sgmRowCost=new Float32Array(CAM_W*128); // block SAD costs for current row
-const sgmLR=new Float32Array(CAM_W*128);      // L→R aggregated costs
-const sgmRL=new Float32Array(CAM_W*128);      // R→L aggregated costs
 const medianBuf=new Float32Array(CAM_W*CAM_H);
-const dspValid=new Uint8Array(CAM_W*CAM_H); // 1=passed L-R consistency, anchor for fill
+const dspValid=new Uint8Array(CAM_W*CAM_H);
 
 const scene=new THREE.Scene();
 scene.fog=new THREE.FogExp2(0x080e18,0.038);
 const camera=new THREE.PerspectiveCamera(44,cw.clientWidth/cw.clientHeight,0.1,60);
-camera.layers.enable(2); // sees path lines, bbox, diag marker, beam — stereo cams do not
+camera.layers.enable(2);
 
 scene.add(new THREE.AmbientLight(0xaabbdd,2.4));
 const sun=new THREE.DirectionalLight(0xffffff,3.0);
@@ -465,7 +477,6 @@ function setFontSize(sz){
   else root.classList.add('fs-m');
   ['s','m','l'].forEach(s=>document.getElementById('fs-'+s).classList.toggle('active-size',s===sz));
   try{localStorage.setItem('vp-fontsize',sz);}catch(e){}
-  // Re-measure after font size changes layout
   requestAnimationFrame(resizeMainArea);
   requestAnimationFrame(()=>{drawNNArch();drawLossCurve();});
 }
@@ -481,7 +492,6 @@ function mkCyl(rt,rb,h,col,r=0.5,m=0.35,s=16){const o=new THREE.Mesh(new THREE.C
 const PLAT_TOP=0.12;
 scene.add(new THREE.GridHelper(26,26,0x1a2a3a,0x0e1820));
 (function(){
-  // Poisson disk platform texture — aperiodic structured-light pattern baked into surface.
   const S=512,DOT_R=14,DOT_PIX=2,K=30;
   const BASE=[36,55,78],DOT=[210,220,228];
   const cellSz=DOT_R/Math.SQRT2,GW=Math.ceil(S/cellSz)|0;
@@ -522,7 +532,6 @@ scene.add(new THREE.GridHelper(26,26,0x1a2a3a,0x0e1820));
   const pe=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(4.2,0.24,4.2)),new THREE.LineBasicMaterial({color:0x3a6a9a}));pe.position.copy(plat.position);scene.add(pe);
 })();
 const PLACE={x:0.4,z:0.4};
-// Placement ring — thin torus outline only, no filled disc (solid fill confuses stereo matching)
 const tr=new THREE.Mesh(new THREE.TorusGeometry(0.36,0.012,4,48),new THREE.MeshStandardMaterial({color:0x2aaa4a,emissive:new THREE.Color(0x0a3a1a),emissiveIntensity:0.4}));tr.rotation.x=Math.PI/2;tr.position.set(PLACE.x,PLAT_TOP+0.001,PLACE.z);scene.add(tr);
 
 const CAM_POLE_X=2.8;
@@ -568,35 +577,16 @@ const FOCAL_PX=CAM_H/(2*Math.tan(FOV_RAD/2));
 const BASELINE_M=BASELINE*2;
 const DEPTH_MIN=5.5,DEPTH_MAX=7.5;
 
-// ── STRUCTURED LIGHT DOT STAMP (depth-correct) ───────────────────────────
-// Simulates a RealSense-style active stereo IR dot projector.
-// A projector camera renders a depth pass of the scene each frame.
-// Each dot's screen position is looked up in the depth buffer to get the
-// true surface depth at that point — platform OR part surface, whichever
-// is closest. That depth is unprojected to world space, giving the correct
-// 3D position for projecting into stereoL and stereoR with proper parallax.
-// Result: dots sit on part surfaces when parts occlude the platform, and
-// on the platform where no part is present.
-
-// Projector camera — same FOV/position as stereoL (co-located emitter)
+// ── DEPTH-CORRECT IR DOT STAMP ────────────────────────────────────────────
 const projCam=new THREE.PerspectiveCamera(52,CAM_W/CAM_H,0.1,20);
 projCam.position.set(CAM_BOOM_END_X,CAM_BASE_Y,CAM_BASE_Z);
 projCam.up.set(0,0,1);
 projCam.lookAt(CAM_BOOM_END_X,0,CAM_BASE_Z);
-// Layer 0 only — do not include path/viz objects in depth pass
 
-// Depth render target — need a depth texture to read back Z values
-const rtDepth=new THREE.WebGLRenderTarget(CAM_W,CAM_H);
-rtDepth.depthBuffer=true;
-rtDepth.depthTexture=new THREE.DepthTexture(CAM_W,CAM_H,THREE.UnsignedIntType);
-const depthPixels=new Uint8Array(CAM_W*CAM_H*4); // RGBA readback of depth-encoded pass
-
-// We encode depth into RGBA via a simple ShaderMaterial for readback compatibility
 const depthEncodeMat=new THREE.ShaderMaterial({
   vertexShader:`void main(){gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
   fragmentShader:`void main(){
-    float z=gl_FragCoord.z; // NDC depth 0..1
-    // Pack into RGBA: R=floor(z*255), G=fract(z*255)*255, etc. (2-byte precision)
+    float z=gl_FragCoord.z;
     float r=floor(z*255.0)/255.0;
     float g=fract(z*255.0);
     gl_FragColor=vec4(r,g,0.0,1.0);
@@ -605,10 +595,9 @@ const depthEncodeMat=new THREE.ShaderMaterial({
 const depthRt=new THREE.WebGLRenderTarget(CAM_W,CAM_H,{type:THREE.UnsignedByteType});
 const depthBuf=new Uint8Array(CAM_W*CAM_H*4);
 
-// Poisson disk dot positions in NDC space — aperiodic, every patch unique.
-// Bridson's algorithm in the [-1,1]×[-1,1] NDC domain (no toroidal wrap needed).
+// Poisson disk dot positions in NDC — aperiodic, every patch unique
 const IR_NDC=(function(){
-  const r=0.11,k=30; // min NDC distance, candidates per point
+  const r=0.11,k=30;
   const cellSz=r/Math.SQRT2,GW=Math.ceil(2/cellSz)|0;
   const grid=new Int32Array(GW*GW).fill(-1);
   const pts=[],active=[];
@@ -638,14 +627,33 @@ const IR_NDC=(function(){
   return pts;
 })();
 
-// Reusable vectors
 const _unproj=new THREE.Vector3();
-const _irWorld=new THREE.Vector3();
 const _irNDC=new THREE.Vector3();
 
-function stampIRDots(fault){
-  if(fault)return;
-  projCam.updateMatrixWorld();projCam.updateProjectionMatrix();
+// stampDot — hardSet=true: write exact value (IR onto SAD gray buf)
+//           hardSet=false: additive (IR display buf, allows bloom overlap)
+function stampDot(buf,ndc,intensity,radius,hardSet){
+  const px=Math.round((ndc.x*0.5+0.5)*CAM_W),py=Math.round((-ndc.y*0.5+0.5)*CAM_H);
+  if(ndc.z>1||px<0||px>=CAM_W||py<0||py>=CAM_H)return;
+  const r2=radius*radius;
+  for(let oy=-radius;oy<=radius;oy++)for(let ox=-radius;ox<=radius;ox++){
+    if(ox*ox+oy*oy>r2)continue;
+    const sx=px+ox,sy=py+oy;if(sx<0||sx>=CAM_W||sy<0||sy>=CAM_H)continue;
+    const bufY=CAM_H-1-sy,idx=(bufY*CAM_W+sx)*4;
+    if(hardSet){
+      buf[idx]=intensity;buf[idx+1]=intensity;buf[idx+2]=intensity;
+    } else {
+      buf[idx]=Math.min(255,buf[idx]+intensity);
+      buf[idx+1]=Math.min(255,buf[idx+1]+intensity);
+      buf[idx+2]=Math.min(255,buf[idx+2]+intensity);
+    }
+    buf[idx+3]=255;
+  }
+}
+
+function _depthPassForProjector(){
+  const hiddenLines=[];
+  scene.traverseVisible(obj=>{if(obj.isLine){obj.visible=false;hiddenLines.push(obj);}});
   const prevRT=renderer.getRenderTarget();
   const prevCC=new THREE.Color();renderer.getClearColor(prevCC);const prevCA=renderer.getClearAlpha();
   const savedMats=[];
@@ -655,29 +663,31 @@ function stampIRDots(fault){
   renderer.readRenderTargetPixels(depthRt,0,0,CAM_W,CAM_H,depthBuf);
   savedMats.forEach(({obj,mat})=>{obj.material=mat;});
   renderer.setRenderTarget(prevRT);renderer.setClearColor(prevCC,prevCA);
+  hiddenLines.forEach(obj=>{obj.visible=true;});
+}
+
+function stampIRDots(fault){
+  if(fault)return;
+  _depthPassForProjector();
+  projCam.updateMatrixWorld();projCam.updateProjectionMatrix();
   const invProj=new THREE.Matrix4().copy(projCam.projectionMatrix).invert();
   const invView=new THREE.Matrix4().copy(projCam.matrixWorldInverse).invert();
   for(let di=0;di<IR_NDC.length;di++){
     const{nx,ny}=IR_NDC[di];
-    const px=Math.round((nx*0.5+0.5)*CAM_W),py=Math.round((-ny*0.5+0.5)*CAM_H);
-    if(px<0||px>=CAM_W||py<0||py>=CAM_H)continue;
-    const bufY=CAM_H-1-py,bi=(bufY*CAM_W+px)*4;
+    const px2=Math.round((nx*0.5+0.5)*CAM_W),py2=Math.round((-ny*0.5+0.5)*CAM_H);
+    if(px2<0||px2>=CAM_W||py2<0||py2>=CAM_H)continue;
+    const bufY=CAM_H-1-py2,bi=(bufY*CAM_W+px2)*4;
     const ndcZ=depthBuf[bi]/255+(depthBuf[bi+1]/255)/255;
     if(ndcZ>=0.9999)continue;
     _unproj.set(nx,ny,ndcZ*2-1).applyMatrix4(invProj).applyMatrix4(invView);
-    _irNDC.copy(_unproj).project(stereoL); stampDot(pixL,_irNDC,70,1);
-    _irNDC.copy(_unproj).project(stereoR); stampDot(pixR,_irNDC,70,1);
-  }
-}
-function stampDot(buf,ndc,intensity,radius){
-  const px=Math.round((ndc.x*0.5+0.5)*CAM_W),py=Math.round((-ndc.y*0.5+0.5)*CAM_H);
-  if(ndc.z>1||px<0||px>=CAM_W||py<0||py>=CAM_H)return;
-  const r2=radius*radius;
-  for(let oy=-radius;oy<=radius;oy++)for(let ox=-radius;ox<=radius;ox++){
-    if(ox*ox+oy*oy>r2)continue;
-    const sx=px+ox,sy=py+oy;if(sx<0||sx>=CAM_W||sy<0||sy>=CAM_H)continue;
-    const bufY=CAM_H-1-sy,idx=(bufY*CAM_W+sx)*4;
-    buf[idx]=Math.min(255,buf[idx]+intensity);buf[idx+1]=Math.min(255,buf[idx+1]+intensity);buf[idx+2]=Math.min(255,buf[idx+2]+intensity);
+    // Left camera
+    _irNDC.copy(_unproj).project(stereoL);
+    stampDot(pixL,_irNDC,220,1,true);      // hard-set into SAD grayscale buf
+    stampDot(pixL_ir,_irNDC,240,1,false);  // additive into IR display buf
+    // Right camera
+    _irNDC.copy(_unproj).project(stereoR);
+    stampDot(pixR,_irNDC,220,1,true);
+    stampDot(pixR_ir,_irNDC,240,1,false);
   }
 }
 
@@ -685,7 +695,7 @@ const beam=new THREE.Mesh(new THREE.ConeGeometry(1.6,3.8,18,1,true),new THREE.Me
 beam.layers.set(2);
 beam.position.set(0,3.7,CAM_BASE_Z);beam.rotation.x=Math.PI;scene.add(beam);
 
-
+// ── ARM ───────────────────────────────────────────────────────────────────
 const SHOULDER=new THREE.Vector3(-2.5,2.2,0);
 const L1=1.9,L2=1.6,L3=0.5,CUP=0.22,Lb=L2+L3;
 const HOME={yaw:Math.PI/2,q1:0.15,q2:0.4};
@@ -786,6 +796,50 @@ new ResizeObserver(entries=>{
 {const lrh=document.getElementById('lrh'),lw=document.getElementById('lw');let rsz=false,rsyStart=0,rshStart=0;lrh.addEventListener('mousedown',e=>{rsz=true;rsyStart=e.clientY;rshStart=lw.clientHeight;document.body.style.cursor='ns-resize';e.preventDefault();});document.addEventListener('mousemove',e=>{if(!rsz)return;lw.style.height=Math.max(60,Math.min(600,rshStart+(e.clientY-rsyStart)))+'px';});document.addEventListener('mouseup',()=>{rsz=false;document.body.style.cursor='';});}
 
 const logEl=document.getElementById('lw');
+
+// ── CAMERA PANEL MODE TOGGLE ──────────────────────────────────────────────
+let camMode='rgb';
+const CAM_MODE_LABELS={rgb:'RGB',ir:'IR',combined:'Combined'};
+const CAM_MODE_CLASSES={rgb:'',ir:'ir-mode',combined:'combined-mode'};
+
+function cycleCamMode(){
+  camMode=camMode==='rgb'?'ir':camMode==='ir'?'combined':'rgb';
+  const btn=document.getElementById('btncam');
+  btn.textContent='Cam: '+CAM_MODE_LABELS[camMode];
+  btn.className=CAM_MODE_CLASSES[camMode]||'';
+  log(`Camera panels → ${CAM_MODE_LABELS[camMode]} mode`,'dim');
+}
+
+// drawCamPanel: renders one of three views from the three pixel buffers
+// RGB:      straight color render — IR dots NOT visible (correct: they're IR wavelength)
+// IR:       IR dots only on black — what a real IR sensor sees
+// Combined: IR dots overlaid on RGB at ~85% alpha — shows dot-surface relationship
+function drawCamPanel(ctx,pixRGB,pixIR,mode){
+  const id=ctx.createImageData(CAM_W,CAM_H);
+  for(let y=0;y<CAM_H;y++){
+    for(let x=0;x<CAM_W;x++){
+      const src=((CAM_H-1-y)*CAM_W+x)*4;
+      const dst=(y*CAM_W+x)*4;
+      if(mode==='rgb'){
+        id.data[dst]=pixRGB[src];id.data[dst+1]=pixRGB[src+1];id.data[dst+2]=pixRGB[src+2];
+      } else if(mode==='ir'){
+        // IR-only: grayscale dot pattern on black — slight blue tint for realism
+        const v=pixIR[src];
+        id.data[dst]=Math.round(v*0.85);id.data[dst+1]=Math.round(v*0.90);id.data[dst+2]=v;
+      } else {
+        // Combined: alpha-blend IR dots over RGB
+        const irV=pixIR[src];
+        const irAlpha=irV/255*0.85;
+        id.data[dst]=Math.min(255,Math.round(pixRGB[src]*(1-irAlpha)+irV*irAlpha));
+        id.data[dst+1]=Math.min(255,Math.round(pixRGB[src+1]*(1-irAlpha)+irV*irAlpha));
+        id.data[dst+2]=Math.min(255,Math.round(pixRGB[src+2]*(1-irAlpha)+irV*irAlpha));
+      }
+      id.data[dst+3]=255;
+    }
+  }
+  ctx.putImageData(id,0,0);
+}
+
 function log(msg,cls='info'){const now=new Date();const ts=now.toTimeString().slice(0,8)+'.'+String(now.getMilliseconds()).padStart(3,'0');const d=document.createElement('div');d.className='ll '+cls;d.innerHTML=`<span class="ts">[${ts}]</span><span class="ms">${msg}</span>`;logEl.appendChild(d);while(logEl.children.length>120)logEl.removeChild(logEl.firstChild);logEl.scrollTop=logEl.scrollHeight;}
 
 let picks=0,succs=0,reprErr=0.24,autoMode=false,autoTimer=0,calibFaultActive=false;
@@ -826,13 +880,10 @@ function buildOrigPath(wps){
   const pts=wps.map(w=>w.pos);
   const geo=new THREE.BufferGeometry().setFromPoints(pts);
   pathOrigLine=new THREE.Line(geo,new THREE.LineBasicMaterial({color:0xfb923c,opacity:0.5,transparent:true}));
-  pathOrigLine.layers.set(2);
-  pathOrigLine.visible=pathVisible;
-  scene.add(pathOrigLine);
+  pathOrigLine.layers.set(2);pathOrigLine.visible=pathVisible;scene.add(pathOrigLine);
   wps.forEach(w=>{
     const m=new THREE.Mesh(new THREE.SphereGeometry(0.07,8,8),new THREE.MeshBasicMaterial({color:w.col,opacity:0.85,transparent:true}));
-    m.layers.set(2);
-    m.position.copy(w.pos);m.visible=pathVisible;scene.add(m);pathWpMarkers.push(m);
+    m.layers.set(2);m.position.copy(w.pos);m.visible=pathVisible;scene.add(m);pathWpMarkers.push(m);
   });
 }
 
@@ -840,9 +891,7 @@ function buildReplanPath(wps){
   const pts=wps.map(w=>w.pos);
   const geo=new THREE.BufferGeometry().setFromPoints(pts);
   const replanLine=new THREE.Line(geo,new THREE.LineBasicMaterial({color:0xf5a623,opacity:0.9,transparent:true}));
-  replanLine.layers.set(2);
-  replanLine.visible=pathVisible;
-  scene.add(replanLine);
+  replanLine.layers.set(2);replanLine.visible=pathVisible;scene.add(replanLine);
   pathWpMarkers.push(replanLine);
   document.getElementById('wp-replan-lbl').textContent='⚠ REPLANNED';
   document.getElementById('wp-replan-lbl').style.color='#f5a623';
@@ -856,9 +905,7 @@ function updateActualPath(){
   if(pathActualLine){scene.remove(pathActualLine);}
   const geo=new THREE.BufferGeometry().setFromPoints(actualPathPts);
   pathActualLine=new THREE.Line(geo,new THREE.LineBasicMaterial({color:0x7dc8ff,opacity:0.7,transparent:true}));
-  pathActualLine.layers.set(2);
-  pathActualLine.visible=pathVisible;
-  scene.add(pathActualLine);
+  pathActualLine.layers.set(2);pathActualLine.visible=pathVisible;scene.add(pathActualLine);
 }
 
 function clearPath(){
@@ -973,15 +1020,6 @@ function colmapTurbo(t){
   else{const u=(t-0.75)*4;r=255;g=Math.round(255-u*200);b=0;}
   return[r,g,b];
 }
-function colmapDepth(t){
-  t=clamp(1-t,0,1);
-  let r,g,b;
-  if(t<0.2){r=0;g=0;b=Math.round(t*5*120);}
-  else if(t<0.45){const u=(t-0.2)/0.25;r=Math.round(u*20);g=Math.round(u*180);b=Math.round(120+u*135);}
-  else if(t<0.7){const u=(t-0.45)/0.25;r=Math.round(20+u*200);g=Math.round(180+u*70);b=255;}
-  else{const u=(t-0.7)/0.3;r=255;g=Math.round(250-u*200);b=Math.round(255-u*200);}
-  return[r,g,b];
-}
 
 function buildGradient(el,fn,steps=32){
   const stops=[];for(let i=0;i<=steps;i++){const t=i/steps;const[r,g,b]=fn(t);stops.push(`rgb(${r},${g},${b}) ${(t*100).toFixed(0)}%`);}
@@ -997,26 +1035,14 @@ const vdepthCtx=document.getElementById('vdepth').getContext('2d');
 const vdetCtx=document.getElementById('vdet').getContext('2d');
 const vpcCtx=document.getElementById('vpc').getContext('2d');
 
-function drawRawCam(ctx,pix){
-  const id=ctx.createImageData(CAM_W,CAM_H);
-  for(let y=0;y<CAM_H;y++){for(let x=0;x<CAM_W;x++){const src=((CAM_H-1-y)*CAM_W+x)*4;const dst=(y*CAM_W+x)*4;id.data[dst]=pix[src];id.data[dst+1]=pix[src+1];id.data[dst+2]=pix[src+2];id.data[dst+3]=255;}}
-  ctx.putImageData(id,0,0);
-}
-
+// ── DEPTH PASS HELPER (shared by GT panel + projector stamp) ─────────────
 function _depthPassRender(){
-  // Hide all Line/LineSegments (grid, edges, path lines) — they're not meshes so
-  // isMesh filter misses them, causing them to render into the depth pass with
-  // their default materials and appear as false depth readings (the grid artifact).
   const hiddenLines=[];
-  scene.traverseVisible(obj=>{
-    if(obj.isLine){obj.visible=false;hiddenLines.push(obj);}
-  });
+  scene.traverseVisible(obj=>{if(obj.isLine){obj.visible=false;hiddenLines.push(obj);}});
   const prevRT=renderer.getRenderTarget();
   const prevCC=new THREE.Color();renderer.getClearColor(prevCC);const prevCA=renderer.getClearAlpha();
   const savedMats=[];
-  scene.traverseVisible(obj=>{
-    if(obj.isMesh){savedMats.push({obj,mat:obj.material});obj.material=depthEncodeMat;}
-  });
+  scene.traverseVisible(obj=>{if(obj.isMesh){savedMats.push({obj,mat:obj.material});obj.material=depthEncodeMat;}});
   renderer.setClearColor(0xffffff,1);
   renderer.setRenderTarget(depthRt);
   renderer.render(scene,stereoL);
@@ -1026,12 +1052,12 @@ function _depthPassRender(){
   hiddenLines.forEach(obj=>{obj.visible=true;});
 }
 
-// Lightweight GT depth pass — computes sharedDispMin/Max only, no canvas output.
-// Called every compute frame so computeDisparity always has a current shared scale.
+let sharedDispMin=78,sharedDispMax=96;
+
 function updateSharedDispRange(){
   _depthPassRender();
   const near=stereoL.near,far=stereoL.far;
-  const NULL_FLOOR=4.0; // lowered from 4.8 — must clear tops of tallest parts (~4.6m)
+  const NULL_FLOOR=4.0;
   const MAX_DISP=96;
   let dMin=9999,dMax=0;
   for(let i=0;i<CAM_W*CAM_H;i++){
@@ -1051,9 +1077,11 @@ function updateSharedDispRange(){
   }
 }
 
-// Shared disparity range — updated by updateSharedDispRange each compute frame
-let sharedDispMin=78,sharedDispMax=96;
-
+// ── SAD STEREO MATCHING (reworked) ────────────────────────────────────────
+// Key changes vs previous version:
+//   STEP=1  (was 3) — every pixel, no sparse grid gaps
+//   HALF=4  (was 6) — 9×9 block, better point-feature response
+//   IR dots hard-set at 220 before this runs (dominant signal)
 function computeDisparity(fault){
   const MAX_DISP=96;
   const idDisp=vdCtx.createImageData(CAM_W,CAM_H);
@@ -1061,76 +1089,109 @@ function computeDisparity(fault){
   let validDepthCount=0;
 
   {
-    // ── Luminance grayscale ───────────────────────────────────────────────
-    for(let y=0;y<CAM_H;y++){const fy=CAM_H-1-y;for(let x=0;x<CAM_W;x++){const i=(fy*CAM_W+x)*4;grayL[y*CAM_W+x]=0.299*pixL[i]+0.587*pixL[i+1]+0.114*pixL[i+2];grayR[y*CAM_W+x]=0.299*pixR[i]+0.587*pixR[i+1]+0.114*pixR[i+2];}}
+    // ── Copy pre-converted grayscale (IR dots already stamped as hard-set) ──
+    for(let y=0;y<CAM_H;y++){
+      const fy=CAM_H-1-y;
+      for(let x=0;x<CAM_W;x++){
+        const i=(fy*CAM_W+x)*4;
+        grayL[y*CAM_W+x]=pixL[i];   // already grayscale + IR
+        grayR[y*CAM_W+x]=pixR[i];
+      }
+    }
+
     const ND=MAX_DISP;
-    const HALF=6,STEP=3;
+    const HALF=4,STEP=1;   // ← full-res, small block
     const RL_MIN_X=HALF+ND;
     dspLR.fill(0);dspRL.fill(0);dspValid.fill(0);
+
     // ── SAD L→R ──────────────────────────────────────────────────────────
     for(let y=HALF;y<CAM_H-HALF;y+=STEP){
       for(let x=HALF;x<CAM_W-HALF-ND;x+=STEP){
         let bD=0,bS=1e9,sS=1e9;
-        for(let d=1;d<ND;d++){let s=0;for(let dy=-HALF;dy<=HALF;dy+=STEP){const row=y+dy;for(let dx=-HALF;dx<=HALF;dx+=STEP)s+=Math.abs(grayL[row*CAM_W+(x+dx)]-grayR[row*CAM_W+(x+dx+d)]);}if(s<bS){sS=bS;bS=s;bD=d;}else if(s<sS)sS=s;}
-        const v=(bS<3900)&&(sS===1e9||bS/sS<0.90)?bD:0;
-        for(let oy=0;oy<STEP;oy++)for(let ox=0;ox<STEP;ox++){const py=y+oy,px=x+ox;if(py<CAM_H&&px<CAM_W)dspLR[py*CAM_W+px]=v;}
+        for(let d=1;d<ND;d++){
+          let s=0;
+          for(let dy=-HALF;dy<=HALF;dy+=STEP){
+            const row=y+dy;
+            for(let dx=-HALF;dx<=HALF;dx+=STEP)
+              s+=Math.abs(grayL[row*CAM_W+(x+dx)]-grayR[row*CAM_W+(x+dx+d)]);
+          }
+          if(s<bS){sS=bS;bS=s;bD=d;}else if(s<sS)sS=s;
+        }
+        // uniqueness ratio threshold — tighter with full-res small block
+        const v=(bS<2800)&&(sS===1e9||bS/sS<0.88)?bD:0;
+        dspLR[y*CAM_W+x]=v;
       }
     }
+
     // ── R→L + L-R consistency ────────────────────────────────────────────
     if(!fault){
       for(let y=HALF;y<CAM_H-HALF;y+=STEP){
         for(let x=RL_MIN_X;x<CAM_W-HALF;x+=STEP){
           let bD=0,bS=1e9;
-          for(let d=1;d<ND;d++){let s=0;for(let dy=-HALF;dy<=HALF;dy+=STEP){const row=y+dy;for(let dx=-HALF;dx<=HALF;dx+=STEP)s+=Math.abs(grayR[row*CAM_W+(x+dx)]-grayL[row*CAM_W+(x+dx-d)]);}if(s<bS){bS=s;bD=d;}}
-          const v=bS<3900?bD:0;
-          for(let oy=0;oy<STEP;oy++)for(let ox=0;ox<STEP;ox++){const py=y+oy,px=x+ox;if(py<CAM_H&&px<CAM_W)dspRL[py*CAM_W+px]=v;}
+          for(let d=1;d<ND;d++){
+            let s=0;
+            for(let dy=-HALF;dy<=HALF;dy+=STEP){
+              const row=y+dy;
+              for(let dx=-HALF;dx<=HALF;dx+=STEP)
+                s+=Math.abs(grayR[row*CAM_W+(x+dx)]-grayL[row*CAM_W+(x+dx-d)]);
+            }
+            if(s<bS){bS=s;bD=d;}
+          }
+          dspRL[y*CAM_W+x]=bS<2800?bD:0;
         }
       }
       for(let y=0;y<CAM_H;y++)for(let x=0;x<CAM_W;x++){
         const d=dspLR[y*CAM_W+x];
-        if(d>0){const rx=x+Math.round(d);if(rx>=RL_MIN_X&&rx<CAM_W){if(Math.abs(d-dspRL[y*CAM_W+rx])>2)dspLR[y*CAM_W+x]=0;else dspValid[y*CAM_W+x]=1;}else dspValid[y*CAM_W+x]=1;}
+        if(d>0){
+          const rx=x+Math.round(d);
+          if(rx>=RL_MIN_X&&rx<CAM_W){
+            if(Math.abs(d-dspRL[y*CAM_W+rx])<=2)dspValid[y*CAM_W+x]=1;
+            else dspLR[y*CAM_W+x]=0;
+          } else dspValid[y*CAM_W+x]=1;
+        }
       }
-    } else {for(let i=0;i<CAM_W*CAM_H;i++)if(dspLR[i]>0)dspValid[i]=1;}
+    } else {
+      for(let i=0;i<CAM_W*CAM_H;i++)if(dspLR[i]>0)dspValid[i]=1;
+    }
+
     // ── 3×3 median filter ────────────────────────────────────────────────
     medianBuf.set(dspLR);const win9=new Float32Array(9);
-    for(let y=1;y<CAM_H-1;y++){for(let x=1;x<CAM_W-1;x++){let wi=0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)win9[wi++]=medianBuf[(y+dy)*CAM_W+(x+dx)];for(let i=1;i<9;i++){const v=win9[i];let j=i-1;while(j>=0&&win9[j]>v){win9[j+1]=win9[j];j--;}win9[j+1]=v;}dspLR[y*CAM_W+x]=win9[4];}}
+    for(let y=1;y<CAM_H-1;y++){
+      for(let x=1;x<CAM_W-1;x++){
+        let wi=0;
+        for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)win9[wi++]=medianBuf[(y+dy)*CAM_W+(x+dx)];
+        for(let i=1;i<9;i++){const v=win9[i];let j=i-1;while(j>=0&&win9[j]>v){win9[j+1]=win9[j];j--;}win9[j+1]=v;}
+        dspLR[y*CAM_W+x]=win9[4];
+      }
+    }
 
-    // ── Color-guided gap fill — anchored only to L-R consistent pixels ───
-    // COLOR_TOL=8: tight enough to stop at speckle boundaries, still fills
-    // uniform-color regions (platform). Only dspValid pixels can seed fills.
-    const COLOR_TOL=8;
-    for(let pass=0;pass<3;pass++){
-      // horizontal L→R
+    // ── Color-guided gap fill — anchored to L-R consistent pixels only ───
+    // COLOR_TOL=12: slightly looser than before since IR dots create hard edges
+    // that delimit regions naturally — fill propagates within color-coherent zones
+    const COLOR_TOL=12;
+    for(let pass=0;pass<4;pass++){
       for(let y=0;y<CAM_H;y++){
+        // L→R
         for(let x=1;x<CAM_W;x++){
           const i=y*CAM_W+x,j=y*CAM_W+(x-1);
-          if(dspLR[i]===0&&dspValid[j]&&
-             Math.abs(grayL[i]-grayL[j])<COLOR_TOL){
-            dspLR[i]=dspLR[j]; // do NOT set dspValid — filled pixels can't re-anchor
-          }
+          if(dspLR[i]===0&&dspValid[j]&&Math.abs(grayL[i]-grayL[j])<COLOR_TOL)dspLR[i]=dspLR[j];
         }
-        // horizontal R→L
+        // R→L
         for(let x=CAM_W-2;x>=0;x--){
           const i=y*CAM_W+x,j=y*CAM_W+(x+1);
-          if(dspLR[i]===0&&dspValid[j]&&
-             Math.abs(grayL[i]-grayL[j])<COLOR_TOL)
-            dspLR[i]=dspLR[j];
+          if(dspLR[i]===0&&dspValid[j]&&Math.abs(grayL[i]-grayL[j])<COLOR_TOL)dspLR[i]=dspLR[j];
         }
       }
-      // vertical T→B
       for(let x=0;x<CAM_W;x++){
+        // T→B
         for(let y=1;y<CAM_H;y++){
           const i=y*CAM_W+x,j=(y-1)*CAM_W+x;
-          if(dspLR[i]===0&&dspValid[j]&&
-             Math.abs(grayL[i]-grayL[j])<COLOR_TOL)
-            dspLR[i]=dspLR[j];
+          if(dspLR[i]===0&&dspValid[j]&&Math.abs(grayL[i]-grayL[j])<COLOR_TOL)dspLR[i]=dspLR[j];
         }
-        // vertical B→T
+        // B→T
         for(let y=CAM_H-2;y>=0;y--){
           const i=y*CAM_W+x,j=(y+1)*CAM_W+x;
-          if(dspLR[i]===0&&dspValid[j]&&
-             Math.abs(grayL[i]-grayL[j])<COLOR_TOL)
-            dspLR[i]=dspLR[j];
+          if(dspLR[i]===0&&dspValid[j]&&Math.abs(grayL[i]-grayL[j])<COLOR_TOL)dspLR[i]=dspLR[j];
         }
       }
     }
@@ -1143,43 +1204,50 @@ function computeDisparity(fault){
         disparityBuf[y*CAM_W+x]=disp;
         const dn=clamp((disp-sharedDispMin)/(sharedDispMax-sharedDispMin),0,1);
         const[dr,dg,db]=disp>0?colmapTurbo(dn):[8,8,12];
-        const pi=(y*CAM_W+x)*4;idDisp.data[pi]=dr;idDisp.data[pi+1]=dg;idDisp.data[pi+2]=db;idDisp.data[pi+3]=255;
+        const pi=(y*CAM_W+x)*4;
+        idDisp.data[pi]=dr;idDisp.data[pi+1]=dg;idDisp.data[pi+2]=db;idDisp.data[pi+3]=255;
         if(disp>0.5)validDepthCount++;
       }
     }
   }
 
   vdCtx.putImageData(idDisp,0,0);
-  vdCtx.font='10px monospace';vdCtx.fillStyle=fault?'rgba(0,0,0,0.7)':'rgba(0,0,0,0.55)';vdCtx.fillRect(0,0,CAM_W,15);
+  vdCtx.font='10px monospace';
+  vdCtx.fillStyle='rgba(0,0,0,0.6)';vdCtx.fillRect(0,0,CAM_W,15);
   vdCtx.fillStyle=fault?'#f5a623':'#4dffaa';
-  vdCtx.fillText(fault?'FAULT — disparity degraded':`SAD+LR+med+fill  ${sharedDispMin.toFixed(1)}–${sharedDispMax.toFixed(1)}px  valid=${validDepthCount}`,4,11);
-  // Update computed dbar to match shared scale
-  const dispDbar=document.getElementById('disp-grad').parentElement;
-  dispDbar.querySelector('.dbar-lbl:first-child').textContent=`${sharedDispMin.toFixed(0)}px`;
-  dispDbar.querySelector('.dbar-lbl:last-child').textContent=`${sharedDispMax.toFixed(0)}px`;
+  vdCtx.fillText(fault?'FAULT — disparity degraded':`SAD·STEP=1·HALF=4·LR·med·fill  valid=${validDepthCount}`,4,11);
+
   document.getElementById('disp-dot').classList.toggle('live',!fault);
-  document.getElementById('stat-disp').textContent=fault?'FAULT':`${validDepthCount}px · SAD+LR+med+fill`;
-  document.getElementById('depth-dot').classList.toggle('live',!fault);
+  document.getElementById('stat-disp').textContent=fault?'FAULT':`${validDepthCount}px · SAD full-res`;
+
+  // Update dbar labels
+  document.getElementById('dbar-far-label').textContent=`${sharedDispMin.toFixed(0)}px`;
+  document.getElementById('dbar-near-label').textContent=`${sharedDispMax.toFixed(0)}px`;
 }
 
 function project3D(cam,worldPt){const v=worldPt.clone().project(cam);return{x:(v.x*0.5+0.5)*CAM_W,y:(-v.y*0.5+0.5)*CAM_H,inFrustum:v.z<1&&Math.abs(v.x)<1&&Math.abs(v.y)<1};}
 
 function drawDetections(fault){
-  const src=vlCtx.getImageData(0,0,CAM_W,CAM_H);vdetCtx.putImageData(src,0,0);
+  // Draw from RGB buffer (clean color, no IR dots)
+  const srcImg=vlCtx.createImageData(CAM_W,CAM_H);
+  for(let y=0;y<CAM_H;y++)for(let x=0;x<CAM_W;x++){
+    const src=((CAM_H-1-y)*CAM_W+x)*4,dst=(y*CAM_W+x)*4;
+    srcImg.data[dst]=pixL_rgb[src];srcImg.data[dst+1]=pixL_rgb[src+1];srcImg.data[dst+2]=pixL_rgb[src+2];srcImg.data[dst+3]=255;
+  }
+  vdetCtx.putImageData(srcImg,0,0);
   let detCount=0;
   parts.filter(p=>p.visible&&p.userData.onPlat).forEach(p=>{
     const col=PCOLS_CSS[p.userData.idx%PCOLS_CSS.length];
     const center=project3D(stereoL,p.position);if(!center.inFrustum)return;
     const sz=p.userData.hh*2;
-    const pts=[new THREE.Vector3(p.position.x-sz,p.position.y,p.position.z),new THREE.Vector3(p.position.x+sz,p.position.y,p.position.z),new THREE.Vector3(p.position.x,p.position.y+sz,p.position.z),new THREE.Vector3(p.position.x,p.position.y-sz,p.position.z)];
-    const projs=pts.map(pt=>project3D(stereoL,pt));
+    const pts2=[new THREE.Vector3(p.position.x-sz,p.position.y,p.position.z),new THREE.Vector3(p.position.x+sz,p.position.y,p.position.z),new THREE.Vector3(p.position.x,p.position.y+sz,p.position.z),new THREE.Vector3(p.position.x,p.position.y-sz,p.position.z)];
+    const projs=pts2.map(pt=>project3D(stereoL,pt));
     const bx=Math.min(...projs.map(p=>p.x));const bxr=Math.max(...projs.map(p=>p.x));
     const by=Math.min(...projs.map(p=>p.y));const byr=Math.max(...projs.map(p=>p.y));
     const bw=Math.max(bxr-bx,14),bh=Math.max(byr-by,14);
     const jx=fault?(Math.random()-0.5)*28:0,jy=fault?(Math.random()-0.5)*28:0;
     vdetCtx.strokeStyle=fault?'#f5a623':col;vdetCtx.lineWidth=fault?1.5:2;vdetCtx.setLineDash(fault?[4,3]:[]);
     vdetCtx.strokeRect(bx+jx,by+jy,bw,bh);vdetCtx.setLineDash([]);
-    vdetCtx.strokeStyle=fault?'#f5a623':col;vdetCtx.lineWidth=1;
     vdetCtx.beginPath();vdetCtx.moveTo(center.x+jx-5,center.y+jy);vdetCtx.lineTo(center.x+jx+5,center.y+jy);vdetCtx.moveTo(center.x+jx,center.y+jy-5);vdetCtx.lineTo(center.x+jx,center.y+jy+5);vdetCtx.stroke();
     if(!fault){
       const px2=clamp(Math.round(center.x),0,CAM_W-1),py2=clamp(Math.round(center.y),0,CAM_H-1);
@@ -1225,10 +1293,6 @@ function buildPointCloud(fault){
   vpcCtx.strokeStyle='#1a6a2a';vpcCtx.lineWidth=1;vpcCtx.strokeRect(pz.sx,pz.sy,(0.72/5.0)*W,(0.72/5.0)*H);
   vpcCtx.fillStyle='#1a6a2a';vpcCtx.font='8px monospace';vpcCtx.fillText('drop',pz.sx+2,pz.sy-2);
 
-  const brd=toScreen(1.5-0.36,1.5-0.36);
-  vpcCtx.strokeStyle='#6a5a20';vpcCtx.lineWidth=1;vpcCtx.strokeRect(brd.sx,brd.sy,(0.72/5.0)*W,(0.72/5.0)*H);
-  vpcCtx.fillStyle='#6a5a20';vpcCtx.font='8px monospace';vpcCtx.fillText('cal',brd.sx+2,brd.sy-2);
-
   pcPoints.forEach(pt=>{
     const{sx,sy}=toScreen(pt.x,pt.z);
     vpcCtx.fillStyle=pt.valid?pt.col:'#553300';
@@ -1254,17 +1318,10 @@ function buildPointCloud(fault){
 
   vpcCtx.font='9px monospace';vpcCtx.fillStyle=fault?'#aa4400':'#2a4a60';
   vpcCtx.fillText(fault?`${pcPoints.length}pts — depth unreliable`:`${pcPoints.length}pts`,4,H-4);
-  vpcCtx.fillStyle='#2a4a60';vpcCtx.font='8px monospace';
-  vpcCtx.fillText('←+X',W-26,H/2+4);
-  vpcCtx.fillText('+Z↑',4,10);
   document.getElementById('pcstat').textContent=`${pcPoints.length} pts`;
 }
 
 // ── GROUND TRUTH DISPARITY ────────────────────────────────────────────────
-
-// Renders the GT disparity map to vdepthCtx (right disparity panel).
-// d = f·B/Z derived from a GPU depth pass — hole-free, auto-ranged turbo colormap.
-// Three zones: near-black=background, steel-blue=arm/rig, full turbo=work zone.
 function drawGTDepth(fault){
   if(fault){
     vdepthCtx.fillStyle='#030608';vdepthCtx.fillRect(0,0,CAM_W,CAM_H);
@@ -1273,12 +1330,10 @@ function drawGTDepth(fault){
     document.getElementById('stat-depth').textContent='FAULT';
     return;
   }
-  // Depth pass — reuses shared helper that hides lines/grid
   _depthPassRender();
 
-  // Unproject NDC depth → metric Z, classify pixels
   const near=stereoL.near,far=stereoL.far;
-  const NULL_FLOOR=4.0; // lowered to capture tall parts (~4.6m); arm is excluded by platform bounds
+  const NULL_FLOOR=4.0;
   const zBuf=new Float32Array(CAM_W*CAM_H);
   for(let y=0;y<CAM_H;y++){
     for(let x=0;x<CAM_W;x++){
@@ -1292,23 +1347,10 @@ function drawGTDepth(fault){
     }
   }
 
-  // Pass 1: collect disparity range from work-zone pixels
-  const MAX_DISP=96;
-  let gtDispMin=9999,gtDispMax=0,gtDispValid=0;
-  // Snapshot zBuf for NN training blend
   snapshotGTDisp(zBuf);
-  for(let i=0;i<CAM_W*CAM_H;i++){
-    if(zBuf[i]>0){
-      const d=clamp((FOCAL_PX*BASELINE_M)/zBuf[i],0,MAX_DISP);
-      if(d<gtDispMin)gtDispMin=d;
-      if(d>gtDispMax)gtDispMax=d;
-      gtDispValid++;
-    }
-  }
-  const dispPad=(gtDispMax>gtDispMin)?(gtDispMax-gtDispMin)*0.05:0.5;
-  const dispAutoMin=gtDispMin-dispPad,dispAutoMax=gtDispMax+dispPad;
 
-  // Pass 2: colormap
+  const MAX_DISP=96;
+  let gtDispValid=0;
   const id=vdepthCtx.createImageData(CAM_W,CAM_H);
   for(let i=0;i<CAM_W*CAM_H;i++){
     const z=zBuf[i];
@@ -1319,32 +1361,29 @@ function drawGTDepth(fault){
       id.data[pi]=18;id.data[pi+1]=32;id.data[pi+2]=52;id.data[pi+3]=255;
     } else {
       const d=clamp((FOCAL_PX*BASELINE_M)/z,0,MAX_DISP);
-      const dn=clamp((d-dispAutoMin)/(dispAutoMax-dispAutoMin),0,1);
+      const dn=clamp((d-sharedDispMin)/(sharedDispMax-sharedDispMin),0,1);
       const[dr,dg,db]=colmapTurbo(dn);
       id.data[pi]=dr;id.data[pi+1]=dg;id.data[pi+2]=db;id.data[pi+3]=255;
+      gtDispValid++;
     }
   }
   vdepthCtx.putImageData(id,0,0);
 
-  // Header
   vdepthCtx.font='10px monospace';vdepthCtx.fillStyle='rgba(0,0,0,0.65)';vdepthCtx.fillRect(0,0,CAM_W,15);
   vdepthCtx.fillStyle='#4ade80';
   vdepthCtx.fillText(`GT  d=fB/Z  ${sharedDispMin.toFixed(1)}–${sharedDispMax.toFixed(1)}px  auto`,4,11);
 
-  // Update dbar legend — use shared range so both panels show identical labels
-  const dbar=document.getElementById('depth-grad').parentElement;
-  dbar.querySelector('.dbar-lbl:first-child').textContent=`${sharedDispMin.toFixed(0)}px`;
-  dbar.querySelector('.dbar-lbl:last-child').textContent=`${sharedDispMax.toFixed(0)}px`;
+  document.getElementById('gtbar-far-label').textContent=`${sharedDispMin.toFixed(0)}px`;
+  document.getElementById('gtbar-near-label').textContent=`${sharedDispMax.toFixed(0)}px`;
   document.getElementById('depth-dot').classList.add('live');
   document.getElementById('stat-depth').textContent=`${gtDispValid} px · GT`;
 }
-
 
 let _3dFrameCount=0,_3dFpsDisplay=0;
 let _computeFrameCount=0,_computeFpsDisplay=0;
 let _dispFrameCount=0,_dispFpsDisplay=0;
 let _sadMs=0,_sadMsDisplay=0;
-const COMPUTE_INTERVAL=0.08;
+const COMPUTE_INTERVAL=0.10;   // slightly slower due to STEP=1 cost
 const DISPLAY_INTERVAL=0.15;
 let computeTimer=0,displayTimer=0;
 let _fpsWallLast=performance.now();
@@ -1355,18 +1394,47 @@ function updateVisionPanels(dt,fault){
   if(doCompute){
     computeTimer=0;
     _computeFrameCount++;
-    const prevRT=renderer.getRenderTarget();const prevCC=new THREE.Color();renderer.getClearColor(prevCC);const prevCA=renderer.getClearAlpha();
+
+    const prevRT=renderer.getRenderTarget();
+    const prevCC=new THREE.Color();renderer.getClearColor(prevCC);const prevCA=renderer.getClearAlpha();
     renderer.setClearColor(0x040810,1);
-    renderer.setRenderTarget(rtL);renderer.render(scene,stereoL);renderer.readRenderTargetPixels(rtL,0,0,CAM_W,CAM_H,pixL);
-    renderer.setRenderTarget(rtR);renderer.render(scene,stereoR);renderer.readRenderTargetPixels(rtR,0,0,CAM_W,CAM_H,pixR);
+
+    // Render both cameras to their RT
+    renderer.setRenderTarget(rtL);renderer.render(scene,stereoL);
+    renderer.readRenderTargetPixels(rtL,0,0,CAM_W,CAM_H,pixL);
+    renderer.setRenderTarget(rtR);renderer.render(scene,stereoR);
+    renderer.readRenderTargetPixels(rtR,0,0,CAM_W,CAM_H,pixR);
     renderer.setRenderTarget(prevRT);renderer.setClearColor(prevCC,prevCA);
+
+    // Save RGB buffers before any modification
+    pixL_rgb.set(pixL);
+    pixR_rgb.set(pixR);
+
+    // Clear IR display buffers
+    pixL_ir.fill(0);
+    pixR_ir.fill(0);
+
+    // Convert SAD buffers to luminance grayscale
+    // IR dots will be stamped over this as hard-set values
+    for(let i=0;i<CAM_W*CAM_H;i++){
+      const b=i*4;
+      const gL=Math.round(0.299*pixL[b]+0.587*pixL[b+1]+0.114*pixL[b+2]);
+      pixL[b]=pixL[b+1]=pixL[b+2]=gL;pixL[b+3]=255;
+      const gR=Math.round(0.299*pixR[b]+0.587*pixR[b+1]+0.114*pixR[b+2]);
+      pixR[b]=pixR[b+1]=pixR[b+2]=gR;pixR[b+3]=255;
+    }
+
+    // Stamp IR dots: hard-set into SAD gray bufs, additive into IR display bufs
     stampIRDots(fault);
-    // GT depth pass for shared disparity range — must run before computeDisparity
+
+    // GT shared range (must run before computeDisparity)
     if(!fault)updateSharedDispRange();
+
     const t0=performance.now();
     computeDisparity(fault);
-    if(nnBlend>0&&!fault)nnApplyBlend(); // persist U-Net output every frame once trained
+    if(nnBlend>0&&!fault)nnApplyBlend();
     _sadMs=_sadMs*0.8+(performance.now()-t0)*0.2;
+
     buildPointCloud(fault);
   }
 
@@ -1374,11 +1442,13 @@ function updateVisionPanels(dt,fault){
   if(displayTimer>=DISPLAY_INTERVAL&&doCompute){
     displayTimer=0;
     _dispFrameCount++;
-    drawRawCam(vlCtx,pixL);drawRawCam(vrCtx,pixR);
+    // Draw camera panels using the mode toggle
+    drawCamPanel(vlCtx,pixL_rgb,pixL_ir,camMode);
+    drawCamPanel(vrCtx,pixR_rgb,pixR_ir,camMode);
     drawDetections(fault);
     drawGTDepth(fault);
-    document.getElementById('stat-fl').textContent=`${CAM_W}×${CAM_H}`;
-    document.getElementById('stat-fr').textContent=`B=${(BASELINE_M).toFixed(2)}m`;
+    document.getElementById('stat-fl').textContent=`${CAM_W}×${CAM_H} · ${CAM_MODE_LABELS[camMode]}`;
+    document.getElementById('stat-fr').textContent=`B=${BASELINE_M.toFixed(2)}m · ${CAM_MODE_LABELS[camMode]}`;
   }
 
   const now=performance.now();
@@ -1448,6 +1518,7 @@ function animate(ts){
   renderer.setRenderTarget(null);renderer.render(scene,camera);
 }
 requestAnimationFrame(animate);
+
 // ── NEURAL NETWORK TRAINING SIMULATION ───────────────────────────────────
 let nnTraining=false,nnEpoch=0,nnBlend=0,nnTimer=null;
 let nnLossHistory=[];
@@ -1478,10 +1549,8 @@ function drawLossCurve(){
   const dpr=Math.min(window.devicePixelRatio||1,2);
   const cssW=canvas.offsetWidth||canvas.parentElement?.offsetWidth||300;
   const cssH=100;
-  canvas.width=Math.round(cssW*dpr);
-  canvas.height=Math.round(cssH*dpr);
-  canvas.style.width=cssW+'px';
-  canvas.style.height=cssH+'px';
+  canvas.width=Math.round(cssW*dpr);canvas.height=Math.round(cssH*dpr);
+  canvas.style.width=cssW+'px';canvas.style.height=cssH+'px';
   const ctx=canvas.getContext('2d');
   ctx.scale(dpr,dpr);
   const W=cssW,H=cssH;
@@ -1502,14 +1571,11 @@ function drawNNArch(){
   const canvas=document.getElementById('nn-arch-canvas');
   if(!canvas)return;
   const dpr=Math.min(window.devicePixelRatio||1,2);
-  // Measure from the panel itself — always correctly constrained to #root width
   const panel=document.getElementById('nn-panel');
-  const cssW=panel?(panel.offsetWidth-20):600; // subtract 2×10px padding
+  const cssW=panel?(panel.offsetWidth-20):600;
   const cssH=180;
-  canvas.width=Math.round(cssW*dpr);
-  canvas.height=Math.round(cssH*dpr);
-  canvas.style.width=cssW+'px';
-  canvas.style.height=cssH+'px';
+  canvas.width=Math.round(cssW*dpr);canvas.height=Math.round(cssH*dpr);
+  canvas.style.width=cssW+'px';canvas.style.height=cssH+'px';
   const ctx=canvas.getContext('2d');
   ctx.scale(dpr,dpr);
   const W=cssW,H=cssH;
@@ -1531,7 +1597,6 @@ function drawNNArch(){
   const positions=[];
   let ppx=px;
   blocks.forEach((b,i)=>{positions[i]={x:ppx+b.w/2};ppx+=b.w+10;});
-  // Skip connections
   const skipY=18;
   ctx.setLineDash([3,3]);ctx.lineWidth=1;ctx.strokeStyle='rgba(100,180,255,0.3)';
   [[1,7],[2,6],[3,5]].forEach(([a,b])=>{
@@ -1540,7 +1605,6 @@ function drawNNArch(){
     ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(ax,skipY);ctx.lineTo(bx,skipY);ctx.lineTo(bx,by);ctx.stroke();
   });
   ctx.setLineDash([]);
-  // Blocks
   blocks.forEach((b,i)=>{
     const bx=px,by=cy-b.h/2;
     const activeLayer=Math.floor(nnBlend*blocks.length);
@@ -1601,7 +1665,7 @@ function nnApplyBlend(){
 
 function nnTrain(){
   if(nnTraining)return;
-  if(nnEpoch>=NN_MAX_EPOCHS){return;}
+  if(nnEpoch>=NN_MAX_EPOCHS)return;
   nnTraining=true;
   document.getElementById('nn-train-btn').textContent='⏸ Training...';
   document.getElementById('nn-train-btn').disabled=true;
@@ -1614,8 +1678,7 @@ function nnTrain(){
       document.getElementById('nn-badge').textContent=`trained · ${nnAccFromBlend(nnBlend)}`;
       document.getElementById('nn-badge').style.color='#4ade80';
       document.getElementById('nn-badge').style.borderColor='#1a5030';
-      log(`U-Net training complete — acc=${nnAccFromBlend(nnBlend)}  loss=${nnLossFromBlend(nnBlend).toFixed(4)} — disparity panel now showing U-Net output`,'ok');
-      log('U-Net active — disparity panel blends toward GT each frame (persists until Reset)','ok');
+      log(`U-Net complete — acc=${nnAccFromBlend(nnBlend)}  loss=${nnLossFromBlend(nnBlend).toFixed(4)}`,'ok');
       drawNNArch();return;
     }
     nnEpoch++;
@@ -1651,15 +1714,15 @@ function nnReset(){
   document.getElementById('nn-badge').textContent='not trained';
   document.getElementById('nn-badge').style.color='';
   document.getElementById('nn-badge').style.borderColor='';
-  log('U-Net reset — disparity panel returned to SAD+LR mode','dim');
+  log('U-Net reset — disparity panel returned to SAD full-res mode','dim');
   drawLossCurve();drawNNArch();
 }
-log('System boot — stereo vision pick controller v3.1.0','info');
+
+log('System boot — stereo vision pick controller v3.2.0','info');
 log(`Stereo intrinsics: f=${FOCAL_PX.toFixed(1)}px  B=${BASELINE_M.toFixed(2)}m  Z=fB/d`,'ok');
-log('Depth map: Z=(f×B)/disparity — metric scale 5.5–7.5m (narrow range for platform work zone)','ok');
-log('Structured light projector active — IR dot pattern on layer 1 (invisible in 3D view)','dim');
-log(`Parts: ${parts.length} | Drag · scroll · right-drag pan`,'dim');
-// Init NN canvases after layout settles (offsetWidth needs rendered width)
+log('SAD rework: STEP=1 HALF=4 full-res · IR hard-set 220 · 3 buffers/cam · RGB/IR/Combined toggle','ok');
+log('Structured light: IR dots hard-set into grayscale SAD buf · additive into IR display buf','dim');
+log(`Parts: ${parts.length} | Drag · scroll · right-drag pan | Camera panels: click RGB/IR/Combined button`,'dim');
 requestAnimationFrame(()=>requestAnimationFrame(()=>{drawNNArch();drawLossCurve();}));
 setTimeout(()=>{drawNNArch();drawLossCurve();},400);
 </script>
