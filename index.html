@@ -166,6 +166,8 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
     <span style="color:#f5a623;">Disp latency <span id="t-sad" style="color:#c8e0f4;">— ms</span></span>
     <span style="color:#2a4a60;">·</span>
     <span style="color:#aa88ff;">Display refresh <span id="t-disp" style="color:#c8e0f4;">— fps</span></span>
+    <span style="color:#2a4a60;">·</span>
+    <span style="color:#ff80ff;">Adaptive IR <span id="t-air" style="color:#c8e0f4;">0 supp dots</span></span>
   </div>
   <div id="pbar" style="display:none"><div id="pfill"></div></div>
   <div class="lbl2" style="margin-top:4px;">Pipeline</div>
@@ -434,12 +436,27 @@ const rtR=new THREE.WebGLRenderTarget(CAM_W,CAM_H,{type:THREE.UnsignedByteType})
 // pixL/pixR      = grayscale + IR dots (SAD input)
 // pixL_rgb/pixR_rgb = raw RGB render output (display: RGB mode)
 // pixL_ir/pixR_ir   = IR dots only on black (display: IR mode)
+// pixL_prev      = previous frame's left RGB for strided pixel diff
 const pixL=new Uint8Array(CAM_W*CAM_H*4);
 const pixR=new Uint8Array(CAM_W*CAM_H*4);
 const pixL_rgb=new Uint8Array(CAM_W*CAM_H*4);
 const pixR_rgb=new Uint8Array(CAM_W*CAM_H*4);
 const pixL_ir=new Uint8Array(CAM_W*CAM_H*4);
 const pixR_ir=new Uint8Array(CAM_W*CAM_H*4);
+const pixL_prev=new Uint8Array(CAM_W*CAM_H*4); // previous rendered left frame
+
+// Strided pixel diff — sample every DIFF_STRIDE-th pixel (R channel only).
+// ~1200 samples at stride 16 across 307k bytes — negligible cost.
+const DIFF_STRIDE=16;
+const DIFF_THRESH=6; // per-channel delta to count as changed (ignores minor lighting flicker)
+function frameChanged(newBuf,prevBuf){
+  for(let i=0;i<newBuf.length;i+=DIFF_STRIDE*4){
+    if(Math.abs(newBuf[i]-prevBuf[i])>DIFF_THRESH||
+       Math.abs(newBuf[i+1]-prevBuf[i+1])>DIFF_THRESH||
+       Math.abs(newBuf[i+2]-prevBuf[i+2])>DIFF_THRESH)return true;
+  }
+  return false;
+}
 
 const disparityBuf=new Float32Array(CAM_W*CAM_H);
 const grayL=new Float32Array(CAM_W*CAM_H);
@@ -672,6 +689,8 @@ function stampIRDots(fault){
   projCam.updateMatrixWorld();projCam.updateProjectionMatrix();
   const invProj=new THREE.Matrix4().copy(projCam.projectionMatrix).invert();
   const invView=new THREE.Matrix4().copy(projCam.matrixWorldInverse).invert();
+
+  // ── Base Poisson pattern ──────────────────────────────────────────────
   for(let di=0;di<IR_NDC.length;di++){
     const{nx,ny}=IR_NDC[di];
     const px2=Math.round((nx*0.5+0.5)*CAM_W),py2=Math.round((-ny*0.5+0.5)*CAM_H);
@@ -680,15 +699,178 @@ function stampIRDots(fault){
     const ndcZ=depthBuf[bi]/255+(depthBuf[bi+1]/255)/255;
     if(ndcZ>=0.9999)continue;
     _unproj.set(nx,ny,ndcZ*2-1).applyMatrix4(invProj).applyMatrix4(invView);
-    // Left camera
     _irNDC.copy(_unproj).project(stereoL);
-    stampDot(pixL,_irNDC,220,1,true);      // hard-set into SAD grayscale buf
-    stampDot(pixL_ir,_irNDC,240,1,false);  // additive into IR display buf
-    // Right camera
+    stampDot(pixL,_irNDC,220,1,true);
+    stampDot(pixL_ir,_irNDC,240,1,false);
     _irNDC.copy(_unproj).project(stereoR);
     stampDot(pixR,_irNDC,220,1,true);
     stampDot(pixR_ir,_irNDC,240,1,false);
   }
+
+  // ── Adaptive supplemental dots (higher intensity, radius=1) ──────────
+  if(IR_NDC_adaptive.length>0){
+    for(let di=0;di<IR_NDC_adaptive.length;di++){
+      const{nx,ny}=IR_NDC_adaptive[di];
+      const px2=Math.round((nx*0.5+0.5)*CAM_W),py2=Math.round((-ny*0.5+0.5)*CAM_H);
+      if(px2<0||px2>=CAM_W||py2<0||py2>=CAM_H)continue;
+      const bufY=CAM_H-1-py2,bi=(bufY*CAM_W+px2)*4;
+      const ndcZ=depthBuf[bi]/255+(depthBuf[bi+1]/255)/255;
+      if(ndcZ>=0.9999)continue;
+      _unproj.set(nx,ny,ndcZ*2-1).applyMatrix4(invProj).applyMatrix4(invView);
+      // Adaptive dots in IR display buf render slightly brighter/distinct
+      _irNDC.copy(_unproj).project(stereoL);
+      stampDot(pixL,_irNDC,235,1,true);
+      stampDot(pixL_ir,_irNDC,255,1,false);
+      _irNDC.copy(_unproj).project(stereoR);
+      stampDot(pixR,_irNDC,235,1,true);
+      stampDot(pixR_ir,_irNDC,255,1,false);
+    }
+  }
+}
+
+// ── ADAPTIVE IR SYSTEM ────────────────────────────────────────────────────
+// After each pick cycle completes:
+//   1. Scan dspLR void mask (pixels where disparity = 0)
+//   2. Dilate mask ~8px to catch boundary halos
+//   3. Unproject void pixel centres to world space on the platform plane
+//   4. Run a tight Poisson disk pass in that world-space region
+//   5. Convert world points back to projector NDC → append to IR_NDC_adaptive
+// Next cycle's stampIRDots stamps both the base pattern AND adaptive dots,
+// with adaptive dots at slightly higher intensity (240 vs 220) to stand out.
+
+let IR_NDC_adaptive=[];   // supplemental NDC dots added after each cycle
+let airCycleCount=0;       // how many times we've adapted
+
+// Platform world bounds that we'll seed adaptive dots within
+const PLAT_HALF=2.0; // slightly inside the 4.2m platform
+
+function buildAdaptiveIR(){
+  // ── Step 1: collect void pixels from last frame's dspLR ──────────────
+  const VOID_THRESH=0.5;
+  const voidMask=new Uint8Array(CAM_W*CAM_H);
+  let voidCount=0;
+  for(let i=0;i<CAM_W*CAM_H;i++){
+    if(dspLR[i]<VOID_THRESH){voidMask[i]=1;voidCount++;}
+  }
+  if(voidCount===0){
+    log('Adaptive IR: no voids detected — pattern unchanged','dim');
+    return;
+  }
+
+  // ── Step 2: dilate void mask 8px (box dilation) ──────────────────────
+  const dilated=new Uint8Array(CAM_W*CAM_H);
+  const DRAD=8;
+  for(let y=DRAD;y<CAM_H-DRAD;y++){
+    for(let x=DRAD;x<CAM_W-DRAD;x++){
+      if(voidMask[y*CAM_W+x]){
+        for(let dy=-DRAD;dy<=DRAD;dy++)
+          for(let dx=-DRAD;dx<=DRAD;dx++)
+            dilated[(y+dy)*CAM_W+(x+dx)]=1;
+      }
+    }
+  }
+
+  // ── Step 3: collect candidate image-space centres from dilated region ─
+  // Sample on a 4px grid within the dilated mask, unproject to world space
+  // using the shared depthBuf (from the last _depthPassRender call).
+  // Keep only points that land on or near the platform plane (Y ≈ PLAT_TOP).
+  const near=stereoL.near,far=stereoL.far;
+  const invProj=new THREE.Matrix4().copy(stereoL.projectionMatrix).invert();
+  const invView=new THREE.Matrix4().copy(stereoL.matrixWorldInverse).invert();
+  const worldCandidates=[];
+  const GRID=4;
+  for(let y=GRID;y<CAM_H-GRID;y+=GRID){
+    for(let x=GRID;x<CAM_W-GRID;x+=GRID){
+      if(!dilated[y*CAM_W+x])continue;
+      // Get NDC coords for this pixel in stereoL
+      const ndcX=(x/CAM_W)*2-1;
+      const ndcY=-((y/CAM_H)*2-1);
+      // Use depth from last pass — if no valid depth, assume platform plane
+      const bufY=CAM_H-1-y,bi=(bufY*CAM_W+x)*4;
+      const rawZ=depthBuf[bi]/255+(depthBuf[bi+1]/255)/255;
+      let worldPt;
+      if(rawZ<0.9999){
+        const ndcZ=rawZ*2-1;
+        const v=new THREE.Vector3(ndcX,ndcY,ndcZ).applyMatrix4(invProj).applyMatrix4(invView);
+        // Only keep points near the platform surface (within 0.5m above PLAT_TOP)
+        if(v.y>PLAT_TOP-0.1&&v.y<PLAT_TOP+0.6&&
+           Math.abs(v.x)<PLAT_HALF&&Math.abs(v.z)<PLAT_HALF){
+          worldPt=v;
+        }
+      }
+      if(!worldPt){
+        // Raycast to platform plane Y=PLAT_TOP
+        const ray=new THREE.Vector3(ndcX,ndcY,0.5).applyMatrix4(invProj).applyMatrix4(invView);
+        const camPos=stereoL.position;
+        const dir=ray.sub(camPos).normalize();
+        if(Math.abs(dir.y)>0.001){
+          const t=(PLAT_TOP-camPos.y)/dir.y;
+          if(t>0){
+            const wx=camPos.x+dir.x*t,wz=camPos.z+dir.z*t;
+            if(Math.abs(wx)<PLAT_HALF&&Math.abs(wz)<PLAT_HALF)
+              worldPt=new THREE.Vector3(wx,PLAT_TOP,wz);
+          }
+        }
+      }
+      if(worldPt)worldCandidates.push(worldPt);
+    }
+  }
+
+  if(!worldCandidates.length){
+    log('Adaptive IR: no valid world candidates from void mask','dim');
+    return;
+  }
+
+  // ── Step 4: Poisson disk filter in world XZ plane ────────────────────
+  // Min separation 0.06m (tighter than base pattern's effective ~0.12m world spacing)
+  const MIN_SEP=0.06;
+  const MIN_SEP2=MIN_SEP*MIN_SEP;
+  const accepted=[];
+  // Shuffle candidates so we don't always favour top-left
+  for(let i=worldCandidates.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [worldCandidates[i],worldCandidates[j]]=[worldCandidates[j],worldCandidates[i]];
+  }
+  for(const c of worldCandidates){
+    let ok=true;
+    for(const a of accepted){
+      const dx=c.x-a.x,dz=c.z-a.z;
+      if(dx*dx+dz*dz<MIN_SEP2){ok=false;break;}
+    }
+    // Also enforce separation from base IR dots (approx — base dots are ~0.10m apart)
+    if(ok)accepted.push(c);
+    if(accepted.length>=180)break; // cap supplemental dots
+  }
+
+  // ── Step 5: project accepted world points back to projector NDC ───────
+  projCam.updateMatrixWorld();projCam.updateProjectionMatrix();
+  const newDots=[];
+  const _tmp=new THREE.Vector3();
+  for(const w of accepted){
+    _tmp.copy(w).project(projCam);
+    if(Math.abs(_tmp.x)<=1&&Math.abs(_tmp.y)<=1&&_tmp.z<1)
+      newDots.push({nx:_tmp.x,ny:_tmp.y,adaptive:true});
+  }
+
+  // Merge: keep existing adaptive dots that are far enough from new ones,
+  // then add new ones. This lets the pattern accumulate across cycles.
+  const merged=[];
+  for(const existing of IR_NDC_adaptive){
+    let keep=true;
+    for(const nd of newDots){
+      const dx=existing.nx-nd.nx,dy=existing.ny-nd.ny;
+      if(dx*dx+dy*dy<0.005*0.005){keep=false;break;}
+    }
+    if(keep)merged.push(existing);
+  }
+  IR_NDC_adaptive=[...merged,...newDots];
+  airCycleCount++;
+  markSceneChanged();
+
+  const suppCount=IR_NDC_adaptive.length;
+  document.getElementById('t-air').textContent=`${suppCount} supp dots (cycle ${airCycleCount})`;
+  document.getElementById('t-air').style.color='#ff80ff';
+  log(`Adaptive IR cycle ${airCycleCount}: ${voidCount} void px → ${accepted.length} world pts → ${newDots.length} new dots (${suppCount} total supp)`,'ok');
 }
 
 const beam=new THREE.Mesh(new THREE.ConeGeometry(1.6,3.8,18,1,true),new THREE.MeshBasicMaterial({color:0x60b4ff,transparent:true,opacity:0,side:THREE.DoubleSide}));
@@ -986,12 +1168,24 @@ function startPick(){
   document.getElementById('btnr').disabled=true;document.getElementById('st0').className='st active';updStats();
 }
 function toggleAuto(){autoMode=!autoMode;const btn=document.getElementById('btna');btn.textContent='Auto: '+(autoMode?'ON':'OFF');btn.className=autoMode?'bg':'';}
-function addPart(){const pos=safeRandPos();const p=makePart(pos.x,pos.z,parts.length);log(`Part added — ${p.userData.type}`,'ok');}
+function addPart(){const pos=safeRandPos();const p=makePart(pos.x,pos.z,parts.length);markSceneChanged();log(`Part added — ${p.userData.type}`,'ok');}
 function safeRandPos(){const EXCL=[{x:PLACE.x,z:PLACE.z,r:0.55}];for(let a=0;a<200;a++){const x=(Math.random()-.5)*3.2,z=(Math.random()-.5)*3.2;if(Math.abs(x)>1.8||Math.abs(z)>1.8)continue;if(EXCL.every(e=>Math.hypot(x-e.x,z-e.z)>e.r))return{x,z};}return{x:-1.0,z:-1.0};}
-function randomizeParts(){if(state!==S.IDLE||diagState!=='idle'){log('Cannot randomize during active cycle','warn');return;}parts.forEach(p=>{const pos=safeRandPos();p.position.x=pos.x;p.position.z=pos.z;p.rotation.y=Math.random()*Math.PI*2;p.userData.onPlat=true;p.visible=true;});log(`Parts randomized — ${parts.length} placed`,'ok');}
+function randomizeParts(){
+  if(state!==S.IDLE||diagState!=='idle'){log('Cannot randomize during active cycle','warn');return;}
+  parts.forEach(p=>{const pos=safeRandPos();p.position.x=pos.x;p.position.z=pos.z;p.rotation.y=Math.random()*Math.PI*2;p.userData.onPlat=true;p.visible=true;});
+  IR_NDC_adaptive=[];airCycleCount=0;
+  document.getElementById('t-air').textContent='scanning...';
+  document.getElementById('t-air').style.color='#c8e0f4';
+  log(`Parts randomized — ${parts.length} placed · adaptive IR rescan in 600ms`,'ok');
+  setTimeout(()=>{
+    log('Adaptive IR re-init: pass 1...','dim');buildAdaptiveIR();
+    setTimeout(()=>{buildAdaptiveIR();log(`Adaptive IR re-init complete — ${IR_NDC_adaptive.length} supp dots`,'ok');},400);
+  },600);
+}
 function runDiag(){startDiag();}
 function injectFault(){
   calibFaultActive=true;reprErr=2.3;
+  markSceneChanged();
   document.getElementById('dlbl').textContent='Calibration: FAULT';
   document.getElementById('dlbl').className='badge wn';
   updStats();
@@ -1004,6 +1198,7 @@ function injectFault(){
   }
   setTimeout(()=>{
     calibFaultActive=false;reprErr=0.29;
+    markSceneChanged();
     document.getElementById('dlbl').textContent='Calibration: OK';
     document.getElementById('dlbl').className='badge ok';
     updStats();
@@ -1383,17 +1578,34 @@ let _3dFrameCount=0,_3dFpsDisplay=0;
 let _computeFrameCount=0,_computeFpsDisplay=0;
 let _dispFrameCount=0,_dispFpsDisplay=0;
 let _sadMs=0,_sadMsDisplay=0;
-const COMPUTE_INTERVAL=0.10;   // slightly slower due to STEP=1 cost
-const DISPLAY_INTERVAL=0.15;
-let computeTimer=0,displayTimer=0;
+const VISION_INTERVAL=0.12;
+let visionTimer=0;
 let _fpsWallLast=performance.now();
 
+// ── SCENE DIRTY FLAG ──────────────────────────────────────────────────────
+// Vision compute only runs when something actually changed.
+// Idle scene with arm at rest = no recompute needed.
+let sceneChanged=true; // true on first frame to populate panels
+let _lastYaw=0,_lastQ1=0,_lastQ2=0,_lastFault=false,_lastAirCount=-1;
+
+function markSceneChanged(){sceneChanged=true;}
+
 function updateVisionPanels(dt,fault){
-  computeTimer+=dt;
-  const doCompute=computeTimer>=COMPUTE_INTERVAL;
-  if(doCompute){
-    computeTimer=0;
+  // Check if anything actually changed since last compute
+  const armMoved=Math.abs(yaw-_lastYaw)>0.0005||Math.abs(q1-_lastQ1)>0.0005||Math.abs(q2-_lastQ2)>0.0005;
+  const faultChanged=fault!==_lastFault;
+  const airChanged=IR_NDC_adaptive.length!==_lastAirCount;
+  const cycleActive=state!==S.IDLE||diagState!=='idle';
+  if(armMoved||faultChanged||airChanged||cycleActive||sceneChanged)sceneChanged=true;
+  _lastYaw=yaw;_lastQ1=q1;_lastQ2=q2;_lastFault=fault;_lastAirCount=IR_NDC_adaptive.length;
+
+  visionTimer+=dt;
+  const doVision=visionTimer>=VISION_INTERVAL&&sceneChanged;
+  if(doVision){
+    visionTimer=0;
+    sceneChanged=false;
     _computeFrameCount++;
+    _dispFrameCount++;
 
     const prevRT=renderer.getRenderTarget();
     const prevCC=new THREE.Color();renderer.getClearColor(prevCC);const prevCA=renderer.getClearAlpha();
@@ -1405,6 +1617,19 @@ function updateVisionPanels(dt,fault){
     renderer.setRenderTarget(rtR);renderer.render(scene,stereoR);
     renderer.readRenderTargetPixels(rtR,0,0,CAM_W,CAM_H,pixR);
     renderer.setRenderTarget(prevRT);renderer.setClearColor(prevCC,prevCA);
+
+    // ── Pixel diff — skip SAD if frame is visually identical to last ─────
+    // Strided sample of left camera RGB vs previous frame.
+    // Even if the dirty flag fired (e.g. arm angle epsilon), if the rendered
+    // pixels didn't actually change there's nothing new to compute.
+    const pixelsChanged=frameChanged(pixL,pixL_prev);
+    pixL_prev.set(pixL); // always update prev so next diff is fresh
+
+    if(!pixelsChanged){
+      // Scene rendered identically — skip SAD, keep displaying last result
+      _computeFrameCount--;_dispFrameCount--; // don't count as a compute frame
+      return;
+    }
 
     // Save RGB buffers before any modification
     pixL_rgb.set(pixL);
@@ -1436,13 +1661,8 @@ function updateVisionPanels(dt,fault){
     _sadMs=_sadMs*0.8+(performance.now()-t0)*0.2;
 
     buildPointCloud(fault);
-  }
 
-  displayTimer+=dt;
-  if(displayTimer>=DISPLAY_INTERVAL&&doCompute){
-    displayTimer=0;
-    _dispFrameCount++;
-    // Draw camera panels using the mode toggle
+    // Display — always runs with compute, same frame
     drawCamPanel(vlCtx,pixL_rgb,pixL_ir,camMode);
     drawCamPanel(vrCtx,pixR_rgb,pixR_ir,camMode);
     drawDetections(fault);
@@ -1510,7 +1730,12 @@ function animate(ts){
     if(state===S.PDOWN){const f=clamp(stateT/1.5,0,1);setTarget(WPPS.x,lerp(WPQ.y,WPPS.y,eio(f)),WPPS.z);updateActualPath();for(let i=0;i<11;i++)setWpDone(i);setWpActive(11);if(cupNear(WPPS,0.12)||stateT>4){state=S.RELEASE;stateT=0;setLbl('[13/14] Release','#34d399');}}
     if(state===S.RELEASE){for(let i=0;i<12;i++)setWpDone(i);setWpActive(12);if(stateT>0.3&&held){held=false;succs++;cp.position.set(PLACE.x,PLAT_TOP+cp.userData.hh,PLACE.z);cp.userData.onPlat=false;const ct=Math.round(performance.now()-cycleStartTime);document.getElementById('sc').textContent=ct;log(`Placed — cycle: ${ct}ms`,'ok');updStats();}if(stateT>0.8){state=S.RETURN;stateT=0;goHome();setLbl('[14/14] Return home','#7dc8ff');}}
     if(state===S.RETURN){for(let i=0;i<13;i++)setWpDone(i);setWpActive(13);updateActualPath();if(stateT>2.5){state=S.DONE;stateT=0;}}
-    if(state===S.DONE){log('Arm at home — cycle complete','dim');state=S.IDLE;setLbl('Idle — ready','#7dc8ff');document.getElementById('pfill').style.width='0%';document.getElementById('btnr').disabled=false;document.getElementById('st0').className='st';cp=null;held=false;for(let i=0;i<14;i++)setWpDone(i);setTimeout(()=>{clearPath();resetWpStrip();},3000);}
+    if(state===S.DONE){log('Arm at home — cycle complete','dim');state=S.IDLE;setLbl('Idle — ready','#7dc8ff');document.getElementById('pfill').style.width='0%';document.getElementById('btnr').disabled=false;document.getElementById('st0').className='st';cp=null;held=false;for(let i=0;i<14;i++)setWpDone(i);
+      // ── Adaptive IR: analyse this cycle's void map, reinforce next cycle ──
+      log('Adaptive IR: analysing void mask from completed cycle...','dim');
+      setTimeout(()=>buildAdaptiveIR(),200); // slight delay so last disparity frame settles
+      setTimeout(()=>{clearPath();resetWpStrip();},3000);
+    }
     const ord=[S.SCAN,S.APPROACH,S.DESCEND,S.PICK,S.LIFT,S.TRANSIT,S.PDOWN,S.RELEASE,S.RETURN,S.DONE];
     const idx=ord.indexOf(state);if(idx>=0)document.getElementById('pfill').style.width=clamp(idx/ord.length*100,0,100).toFixed(0)+'%';
   }
@@ -1718,13 +1943,22 @@ function nnReset(){
   drawLossCurve();drawNNArch();
 }
 
-log('System boot — stereo vision pick controller v3.2.0','info');
-log(`Stereo intrinsics: f=${FOCAL_PX.toFixed(1)}px  B=${BASELINE_M.toFixed(2)}m  Z=fB/d`,'ok');
-log('SAD rework: STEP=1 HALF=4 full-res · IR hard-set 220 · 3 buffers/cam · RGB/IR/Combined toggle','ok');
-log('Structured light: IR dots hard-set into grayscale SAD buf · additive into IR display buf','dim');
-log(`Parts: ${parts.length} | Drag · scroll · right-drag pan | Camera panels: click RGB/IR/Combined button`,'dim');
-requestAnimationFrame(()=>requestAnimationFrame(()=>{drawNNArch();drawLossCurve();}));
-setTimeout(()=>{drawNNArch();drawLossCurve();},400);
+// ── ADAPTIVE IR BOOT INIT ─────────────────────────────────────────────────
+// Wait 600ms for the animation loop to populate dspLR naturally,
+// then run 2-pass init: pass 1 reads the void map, pass 2 refines it.
+// No forced compute passes — the normal loop does all the work.
+let _airBootDone=false;
+function _airBootInit(){
+  if(_airBootDone)return;_airBootDone=true;
+  log('Adaptive IR boot: pass 1 — void map from first live frames...','dim');
+  buildAdaptiveIR();
+  setTimeout(()=>{
+    log('Adaptive IR boot: pass 2 — refining...','dim');
+    buildAdaptiveIR();
+    log(`Adaptive IR boot complete — ${IR_NDC_adaptive.length} supp dots seeded`,'ok');
+  },400);
+}
+setTimeout(_airBootInit,600);
 </script>
 </body>
 </html>
