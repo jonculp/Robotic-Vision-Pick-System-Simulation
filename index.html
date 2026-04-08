@@ -64,7 +64,6 @@ button.wn:hover:not(:disabled){background:linear-gradient(160deg,#3a2208,#281504
 .vpdot{width:6px;height:6px;border-radius:50%;background:#1a3a5a;flex-shrink:0;}
 .vpdot.live{background:#3de080;}
 .vpcanvas{display:block;width:100%;height:auto;aspect-ratio:4/3;}
-/* Camera mode toggle button — !important on sizing to beat global button + fs scale overrides */
 .cam-toggle{font-size:9px !important;padding:1px 7px !important;margin:0 !important;line-height:1.6;border-radius:3px;background:#0a1828;border:.5px solid #2a5080;color:#7dc8ff;flex-shrink:0;min-width:56px;text-align:center;}
 .cam-toggle:hover:not(:disabled){background:#0f2038;border-color:#3a70a0;color:#aad4ff;}
 .cam-toggle.ir-mode{background:#0a1a10;border-color:#1a5030;color:#4ade80 !important;}
@@ -81,7 +80,6 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
 .dbar{display:flex;align-items:center;gap:4px;padding:2px 6px;}
 .dbar-grad{flex:1;height:6px;border-radius:2px;}
 .dbar-lbl{font-size:9px;color:#2e4a60;white-space:nowrap;}
-/* ── FONT SIZE SCALE ─────────────────────────────────────────────────── */
 .ctrl-lbl{font-size:10px;color:#4a6a88;white-space:nowrap;}
 #root.fs-s .sl{font-size:9px;} #root.fs-s .sv{font-size:14px;} #root.fs-s .ss{font-size:9px;}
 #root.fs-s button{font-size:10px;padding:3px 8px;} #root.fs-s .badge{font-size:10px;}
@@ -161,11 +159,12 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
       </div>
     </div>
   </div>
-  <div id="sr">
+  <div id="sr" style="grid-template-columns:repeat(5,1fr);">
     <div class="st" id="st0"><div class="sl">Picks</div><div class="sv" id="sp">0</div><div class="ss">total</div></div>
     <div class="st" id="st1"><div class="sl">Cycle time</div><div class="sv" id="sc">—</div><div class="ss">ms</div></div>
     <div class="st" id="st2"><div class="sl">Success rate</div><div class="sv" id="ss2">—</div><div class="ss">%</div></div>
     <div class="st good" id="st3"><div class="sl">Reproj err</div><div class="sv" id="sr2">0.24</div><div class="ss">px (warn &gt;0.5)</div></div>
+    <div class="st" id="st4"><div class="sl">Void px</div><div class="sv" id="sv2">—</div><div class="ss">of 76800 · ↓ better</div></div>
   </div>
   <div style="height:1px;background:#0e1824;margin:2px 0;"></div>
   <div id="timing-bar" style="display:flex;gap:16px;justify-content:flex-start;padding:4px 8px;background:#060c14;border:.5px solid #0e1824;border-radius:3px;margin-bottom:4px;font-family:monospace;">
@@ -443,23 +442,16 @@ const CAM_W=320,CAM_H=240;
 const rtL=new THREE.WebGLRenderTarget(CAM_W,CAM_H,{type:THREE.UnsignedByteType});
 const rtR=new THREE.WebGLRenderTarget(CAM_W,CAM_H,{type:THREE.UnsignedByteType});
 
-// ── THREE PIXEL BUFFERS PER CAMERA ───────────────────────────────────────
-// pixL/pixR      = grayscale + IR dots (SAD input)
-// pixL_rgb/pixR_rgb = raw RGB render output (display: RGB mode)
-// pixL_ir/pixR_ir   = IR dots only on black (display: IR mode)
-// pixL_prev      = previous frame's left RGB for strided pixel diff
 const pixL=new Uint8Array(CAM_W*CAM_H*4);
 const pixR=new Uint8Array(CAM_W*CAM_H*4);
 const pixL_rgb=new Uint8Array(CAM_W*CAM_H*4);
 const pixR_rgb=new Uint8Array(CAM_W*CAM_H*4);
 const pixL_ir=new Uint8Array(CAM_W*CAM_H*4);
 const pixR_ir=new Uint8Array(CAM_W*CAM_H*4);
-const pixL_prev=new Uint8Array(CAM_W*CAM_H*4); // previous rendered left frame
+const pixL_prev=new Uint8Array(CAM_W*CAM_H*4);
 
-// Strided pixel diff — sample every DIFF_STRIDE-th pixel (R channel only).
-// ~1200 samples at stride 16 across 307k bytes — negligible cost.
 const DIFF_STRIDE=16;
-const DIFF_THRESH=6; // per-channel delta to count as changed (ignores minor lighting flicker)
+const DIFF_THRESH=6;
 function frameChanged(newBuf,prevBuf){
   for(let i=0;i<newBuf.length;i+=DIFF_STRIDE*4){
     if(Math.abs(newBuf[i]-prevBuf[i])>DIFF_THRESH||
@@ -605,7 +597,6 @@ const FOCAL_PX=CAM_H/(2*Math.tan(FOV_RAD/2));
 const BASELINE_M=BASELINE*2;
 const DEPTH_MIN=4.0,DEPTH_MAX=5.5;
 
-// ── DEPTH-CORRECT IR DOT STAMP ────────────────────────────────────────────
 const projCam=new THREE.PerspectiveCamera(52,CAM_W/CAM_H,0.1,20);
 projCam.position.set(CAM_BOOM_END_X,CAM_BASE_Y,CAM_BASE_Z);
 projCam.up.set(0,0,1);
@@ -623,7 +614,6 @@ const depthEncodeMat=new THREE.ShaderMaterial({
 const depthRt=new THREE.WebGLRenderTarget(CAM_W,CAM_H,{type:THREE.UnsignedByteType});
 const depthBuf=new Uint8Array(CAM_W*CAM_H*4);
 
-// Poisson disk dot positions in NDC — aperiodic, every patch unique
 const IR_NDC=(function(){
   const r=0.11,k=30;
   const cellSz=r/Math.SQRT2,GW=Math.ceil(2/cellSz)|0;
@@ -658,8 +648,6 @@ const IR_NDC=(function(){
 const _unproj=new THREE.Vector3();
 const _irNDC=new THREE.Vector3();
 
-// stampDot — hardSet=true: write exact value (IR onto SAD gray buf)
-//           hardSet=false: additive (IR display buf, allows bloom overlap)
 function stampDot(buf,ndc,intensity,radius,hardSet){
   const px=Math.round((ndc.x*0.5+0.5)*CAM_W),py=Math.round((-ndc.y*0.5+0.5)*CAM_H);
   if(ndc.z>1||px<0||px>=CAM_W||py<0||py>=CAM_H)return;
@@ -676,6 +664,18 @@ function stampDot(buf,ndc,intensity,radius,hardSet){
       buf[idx+2]=Math.min(255,buf[idx+2]+intensity);
     }
     buf[idx+3]=255;
+  }
+}
+// Color variant for flash dots — writes R,G,B directly (used for cyan new-dot flash)
+function stampDotColor(buf,ndc,r,g,b,radius){
+  const px=Math.round((ndc.x*0.5+0.5)*CAM_W),py=Math.round((-ndc.y*0.5+0.5)*CAM_H);
+  if(ndc.z>1||px<0||px>=CAM_W||py<0||py>=CAM_H)return;
+  const r2=radius*radius;
+  for(let oy=-radius;oy<=radius;oy++)for(let ox=-radius;ox<=radius;ox++){
+    if(ox*ox+oy*oy>r2)continue;
+    const sx=px+ox,sy=py+oy;if(sx<0||sx>=CAM_W||sy<0||sy>=CAM_H)continue;
+    const bufY=CAM_H-1-sy,idx=(bufY*CAM_W+sx)*4;
+    buf[idx]=r;buf[idx+1]=g;buf[idx+2]=b;buf[idx+3]=255;
   }
 }
 
@@ -701,7 +701,6 @@ function stampIRDots(fault){
   const invProj=new THREE.Matrix4().copy(projCam.projectionMatrix).invert();
   const invView=new THREE.Matrix4().copy(projCam.matrixWorldInverse).invert();
 
-  // ── Base Poisson pattern ──────────────────────────────────────────────
   for(let di=0;di<IR_NDC.length;di++){
     const{nx,ny}=IR_NDC[di];
     const px2=Math.round((nx*0.5+0.5)*CAM_W),py2=Math.round((-ny*0.5+0.5)*CAM_H);
@@ -718,8 +717,9 @@ function stampIRDots(fault){
     stampDot(pixR_ir,_irNDC,240,1,false);
   }
 
-  // ── Adaptive supplemental dots (higher intensity, radius=1) ──────────
   if(IR_NDC_adaptive.length>0){
+    const isFlashing=_newDotFlashFrames>0;
+    if(isFlashing)_newDotFlashFrames--;
     for(let di=0;di<IR_NDC_adaptive.length;di++){
       const{nx,ny}=IR_NDC_adaptive[di];
       const px2=Math.round((nx*0.5+0.5)*CAM_W),py2=Math.round((-ny*0.5+0.5)*CAM_H);
@@ -728,35 +728,34 @@ function stampIRDots(fault){
       const ndcZ=depthBuf[bi]/255+(depthBuf[bi+1]/255)/255;
       if(ndcZ>=0.9999)continue;
       _unproj.set(nx,ny,ndcZ*2-1).applyMatrix4(invProj).applyMatrix4(invView);
-      // Adaptive dots in IR display buf render slightly brighter/distinct
+      const isNew=isFlashing&&_newDotFlashSet.has(di);
       _irNDC.copy(_unproj).project(stereoL);
       stampDot(pixL,_irNDC,235,1,true);
-      stampDot(pixL_ir,_irNDC,255,1,false);
+      // New dots flash cyan in IR display buffer (R low, G high, B high)
+      if(isNew){
+        stampDotColor(pixL_ir,_irNDC,40,255,255,2);
+      } else {
+        stampDot(pixL_ir,_irNDC,255,1,false);
+      }
       _irNDC.copy(_unproj).project(stereoR);
       stampDot(pixR,_irNDC,235,1,true);
-      stampDot(pixR_ir,_irNDC,255,1,false);
+      if(isNew){
+        stampDotColor(pixR_ir,_irNDC,40,255,255,2);
+      } else {
+        stampDot(pixR_ir,_irNDC,255,1,false);
+      }
     }
   }
 }
 
-// ── ADAPTIVE IR SYSTEM ────────────────────────────────────────────────────
-// After each pick cycle completes:
-//   1. Scan dspLR void mask (pixels where disparity = 0)
-//   2. Dilate mask ~8px to catch boundary halos
-//   3. Unproject void pixel centres to world space on the platform plane
-//   4. Run a tight Poisson disk pass in that world-space region
-//   5. Convert world points back to projector NDC → append to IR_NDC_adaptive
-// Next cycle's stampIRDots stamps both the base pattern AND adaptive dots,
-// with adaptive dots at slightly higher intensity (240 vs 220) to stand out.
-
-let IR_NDC_adaptive=[];   // supplemental NDC dots added after each cycle
-let airCycleCount=0;       // how many times we've adapted
-
-// Platform world bounds that we'll seed adaptive dots within
-const PLAT_HALF=2.0; // slightly inside the 4.2m platform
+let IR_NDC_adaptive=[];
+let airCycleCount=0;
+let _newDotFlashSet=new Set(); // indices into IR_NDC_adaptive that are "new this cycle"
+let _newDotFlashFrames=0;      // countdown frames to show flash
+let voidPxCount=0;             // updated each disparity tick
+const PLAT_HALF=2.0;
 
 function buildAdaptiveIR(){
-  // ── Step 1: collect void pixels from last frame's dspLR ──────────────
   const VOID_THRESH=0.5;
   const voidMask=new Uint8Array(CAM_W*CAM_H);
   let voidCount=0;
@@ -768,7 +767,6 @@ function buildAdaptiveIR(){
     return;
   }
 
-  // ── Step 2: dilate void mask 8px (box dilation) ──────────────────────
   const dilated=new Uint8Array(CAM_W*CAM_H);
   const DRAD=8;
   for(let y=DRAD;y<CAM_H-DRAD;y++){
@@ -781,10 +779,6 @@ function buildAdaptiveIR(){
     }
   }
 
-  // ── Step 3: collect candidate image-space centres from dilated region ─
-  // Sample on a 4px grid within the dilated mask, unproject to world space
-  // using the shared depthBuf (from the last _depthPassRender call).
-  // Keep only points that land on or near the platform plane (Y ≈ PLAT_TOP).
   const near=stereoL.near,far=stereoL.far;
   const invProj=new THREE.Matrix4().copy(stereoL.projectionMatrix).invert();
   const invView=new THREE.Matrix4().copy(stereoL.matrixWorldInverse).invert();
@@ -793,24 +787,20 @@ function buildAdaptiveIR(){
   for(let y=GRID;y<CAM_H-GRID;y+=GRID){
     for(let x=GRID;x<CAM_W-GRID;x+=GRID){
       if(!dilated[y*CAM_W+x])continue;
-      // Get NDC coords for this pixel in stereoL
       const ndcX=(x/CAM_W)*2-1;
       const ndcY=-((y/CAM_H)*2-1);
-      // Use depth from last pass — if no valid depth, assume platform plane
       const bufY=CAM_H-1-y,bi=(bufY*CAM_W+x)*4;
       const rawZ=depthBuf[bi]/255+(depthBuf[bi+1]/255)/255;
       let worldPt;
       if(rawZ<0.9999){
         const ndcZ=rawZ*2-1;
         const v=new THREE.Vector3(ndcX,ndcY,ndcZ).applyMatrix4(invProj).applyMatrix4(invView);
-        // Only keep points near the platform surface (within 0.5m above PLAT_TOP)
         if(v.y>PLAT_TOP-0.1&&v.y<PLAT_TOP+0.6&&
            Math.abs(v.x)<PLAT_HALF&&Math.abs(v.z)<PLAT_HALF){
           worldPt=v;
         }
       }
       if(!worldPt){
-        // Raycast to platform plane Y=PLAT_TOP
         const ray=new THREE.Vector3(ndcX,ndcY,0.5).applyMatrix4(invProj).applyMatrix4(invView);
         const camPos=stereoL.position;
         const dir=ray.sub(camPos).normalize();
@@ -832,12 +822,9 @@ function buildAdaptiveIR(){
     return;
   }
 
-  // ── Step 4: Poisson disk filter in world XZ plane ────────────────────
-  // Min separation 0.06m (tighter than base pattern's effective ~0.12m world spacing)
   const MIN_SEP=0.06;
   const MIN_SEP2=MIN_SEP*MIN_SEP;
   const accepted=[];
-  // Shuffle candidates so we don't always favour top-left
   for(let i=worldCandidates.length-1;i>0;i--){
     const j=Math.floor(Math.random()*(i+1));
     [worldCandidates[i],worldCandidates[j]]=[worldCandidates[j],worldCandidates[i]];
@@ -848,12 +835,10 @@ function buildAdaptiveIR(){
       const dx=c.x-a.x,dz=c.z-a.z;
       if(dx*dx+dz*dz<MIN_SEP2){ok=false;break;}
     }
-    // Also enforce separation from base IR dots (approx — base dots are ~0.10m apart)
     if(ok)accepted.push(c);
-    if(accepted.length>=180)break; // cap supplemental dots
+    if(accepted.length>=180)break;
   }
 
-  // ── Step 5: project accepted world points back to projector NDC ───────
   projCam.updateMatrixWorld();projCam.updateProjectionMatrix();
   const newDots=[];
   const _tmp=new THREE.Vector3();
@@ -863,8 +848,6 @@ function buildAdaptiveIR(){
       newDots.push({nx:_tmp.x,ny:_tmp.y,adaptive:true});
   }
 
-  // Merge: keep existing adaptive dots that are far enough from new ones,
-  // then add new ones. This lets the pattern accumulate across cycles.
   const merged=[];
   for(const existing of IR_NDC_adaptive){
     let keep=true;
@@ -878,17 +861,29 @@ function buildAdaptiveIR(){
   airCycleCount++;
   markSceneChanged();
 
+  // Tag new dots for flash — record their indices in the merged array
+  _newDotFlashSet=new Set();
+  const baseIdx=merged.length;
+  for(let i=0;i<newDots.length;i++)_newDotFlashSet.add(baseIdx+i);
+  _newDotFlashFrames=6; // flash for 6 vision ticks (~0.5s)
+
   const suppCount=IR_NDC_adaptive.length;
   document.getElementById('t-air').textContent=`${suppCount} supp dots (cycle ${airCycleCount})`;
   document.getElementById('t-air').style.color='#ff80ff';
-  log(`Adaptive IR cycle ${airCycleCount}: ${voidCount} void px → ${accepted.length} world pts → ${newDots.length} new dots (${suppCount} total supp)`,'ok');
+  // Update void stat card
+  const voidPct=(voidCount/76800*100).toFixed(0);
+  const voidEl=document.getElementById('sv2');
+  if(voidEl){
+    voidEl.textContent=voidCount.toLocaleString();
+    document.getElementById('st4').className='st '+(voidCount<20000?'good':voidCount<50000?'warn':'err');
+  }
+  log(`Adaptive IR cycle ${airCycleCount}: ${voidCount} void px (${voidPct}%) → ${accepted.length} world pts → ${newDots.length} new dots (${suppCount} total supp)`,'ok');
 }
 
 const beam=new THREE.Mesh(new THREE.ConeGeometry(1.6,3.8,18,1,true),new THREE.MeshBasicMaterial({color:0x60b4ff,transparent:true,opacity:0,side:THREE.DoubleSide}));
 beam.layers.set(2);
 beam.position.set(0,3.7,CAM_BASE_Z);beam.rotation.x=Math.PI;scene.add(beam);
 
-// ── ARM ───────────────────────────────────────────────────────────────────
 const SHOULDER=new THREE.Vector3(-2.5,2.2,0);
 const L1=1.9,L2=1.6,L3=0.5,CUP=0.22,Lb=L2+L3;
 const HOME={yaw:Math.PI/2,q1:0.15,q2:0.4};
@@ -992,7 +987,6 @@ new ResizeObserver(entries=>{
 
 const logEl=document.getElementById('lw');
 
-// ── CAMERA PANEL MODE TOGGLE ──────────────────────────────────────────────
 let camMode='rgb';
 const CAM_MODE_LABELS={rgb:'RGB',ir:'IR',combined:'Combined'};
 const CAM_MODE_CLASSES={rgb:'',ir:'ir-mode',combined:'combined-mode'};
@@ -1002,13 +996,12 @@ function cycleCamMode(){
   const btn=document.getElementById('btncam');
   btn.textContent='Cam: '+CAM_MODE_LABELS[camMode];
   btn.className=CAM_MODE_CLASSES[camMode]||'';
+  // Force vision pipeline to run immediately so IR buffers are populated
+  markSceneChanged();
+  visionTimer=VISION_INTERVAL; // skip the interval wait
   log(`Camera panels → ${CAM_MODE_LABELS[camMode]} mode`,'dim');
 }
 
-// drawCamPanel: renders one of three views from the three pixel buffers
-// RGB:      straight color render — IR dots NOT visible (correct: they're IR wavelength)
-// IR:       IR dots only on black — what a real IR sensor sees
-// Combined: IR dots overlaid on RGB at ~85% alpha — shows dot-surface relationship
 function drawCamPanel(ctx,pixRGB,pixIR,mode){
   const id=ctx.createImageData(CAM_W,CAM_H);
   for(let y=0;y<CAM_H;y++){
@@ -1018,11 +1011,9 @@ function drawCamPanel(ctx,pixRGB,pixIR,mode){
       if(mode==='rgb'){
         id.data[dst]=pixRGB[src];id.data[dst+1]=pixRGB[src+1];id.data[dst+2]=pixRGB[src+2];
       } else if(mode==='ir'){
-        // IR-only: grayscale dot pattern on black — slight blue tint for realism
         const v=pixIR[src];
         id.data[dst]=Math.round(v*0.85);id.data[dst+1]=Math.round(v*0.90);id.data[dst+2]=v;
       } else {
-        // Combined: alpha-blend IR dots over RGB
         const irV=pixIR[src];
         const irAlpha=irV/255*0.85;
         id.data[dst]=Math.min(255,Math.round(pixRGB[src]*(1-irAlpha)+irV*irAlpha));
@@ -1163,7 +1154,7 @@ function finishDiag(){
 const S={IDLE:0,SCAN:1,APPROACH:2,DESCEND:3,PICK:4,LIFT:5,TRANSIT:6,PDOWN:7,RELEASE:8,RETURN:9,DONE:10};
 let state=S.IDLE,stateT=0,cp=null,held=false,cupFace=new THREE.Vector3();
 let cycleStartTime=0,totalPausedMs=0,pauseStartTime=0;
-let WPA,WPP,WPL,WPM,WPQ,WPPS,vph=0,vphT=0;
+let WPA,WPP,WPL,WPM,WPQ,WPPS,vph=0,vphT=0,_scanLogged={};
 const SCAN_DUR=[0.22,0.28,0.32,0.32,0.12,0.22];
 function setLbl(txt){const el=document.getElementById('plbl');el.textContent=txt;el.style.color='#7dc8ff';}
 function cupNear(wp,tol){return Math.sqrt((cupFace.x-wp.x)**2+(cupFace.y-wp.y)**2+(cupFace.z-wp.z)**2)<tol;}
@@ -1171,7 +1162,7 @@ function startPick(){
   if(state!==S.IDLE||diagState!=='idle')return;
   const av=parts.filter(p=>p.visible&&p.userData.onPlat);
   if(!av.length){log('No parts on platform','warn');return;}
-  cp=av[Math.floor(Math.random()*av.length)];picks++;held=false;stateT=0;vph=0;vphT=0;
+  cp=av[Math.floor(Math.random()*av.length)];picks++;held=false;stateT=0;vph=0;vphT=0;_scanLogged={};
   cycleStartTime=performance.now();totalPausedMs=0;
   state=S.SCAN;beam.material.opacity=0.05;
   const px=cp.position.x,pz=cp.position.z,hh=cp.userData.hh,partTop=PLAT_TOP+hh*2;
@@ -1223,7 +1214,7 @@ function togglePause(){
 function stopCycle(){
   if(state===S.IDLE)return;
   if(held&&cp){held=false;cp.position.set(cp.position.x,PLAT_TOP+cp.userData.hh,cp.position.z);cp.userData.onPlat=true;}
-  state=S.IDLE;paused=false;stateT=0;vph=0;vphT=0;
+  state=S.IDLE;paused=false;stateT=0;vph=0;vphT=0;_scanLogged={};
   goHome();beam.material.opacity=0;hideBbox();clearPath();resetWpStrip();
   setLbl('Idle — ready');
   document.getElementById('btnr').disabled=false;
@@ -1234,7 +1225,7 @@ function stopCycle(){
   document.getElementById('st0').className='st';
   document.getElementById('st1').className='st';
   document.getElementById('pfill').style.width='0%';
-  picks--;updStats();
+  picks=Math.max(0,picks-1);updStats();
   log('Pick cycle stopped','warn');
 }
 function injectFault(){
@@ -1269,7 +1260,6 @@ function _colmapTurboCompute(t){
   else{const u=(t-0.75)*4;r=255;g=Math.round(255-u*200);b=0;}
   return[r,g,b];
 }
-// Precompute 1024-entry LUT — replaces per-pixel colmapTurbo calls (~230k/frame)
 const TURBO_LUT=new Uint8Array(1024*3);
 for(let i=0;i<1024;i++){const[r,g,b]=_colmapTurboCompute(i/1023);TURBO_LUT[i*3]=r;TURBO_LUT[i*3+1]=g;TURBO_LUT[i*3+2]=b;}
 function colmapTurbo(t){const i=Math.min(1023,clamp(t,0,1)*1023|0)*3;return[TURBO_LUT[i],TURBO_LUT[i+1],TURBO_LUT[i+2]];}
@@ -1288,7 +1278,6 @@ const vdepthCtx=document.getElementById('vdepth').getContext('2d');
 const vdetCtx=document.getElementById('vdet').getContext('2d');
 const vpcCtx=document.getElementById('vpc').getContext('2d');
 
-// ── DEPTH PASS HELPER (shared by GT panel + projector stamp) ─────────────
 function _depthPassRender(){
   const hiddenLines=[];
   scene.traverseVisible(obj=>{if(obj.isLine){obj.visible=false;hiddenLines.push(obj);}});
@@ -1311,7 +1300,7 @@ function updateSharedDispRange(){
   _depthPassRender();
   const near=stereoL.near,far=stereoL.far;
   const NULL_FLOOR=4.0;
-  const MAX_DISP=96;
+  const MAX_DISP=64;
   let dMin=9999,dMax=0;
   for(let i=0;i<CAM_W*CAM_H;i++){
     const bi=i*4;
@@ -1330,34 +1319,27 @@ function updateSharedDispRange(){
   }
 }
 
-// ── SAD STEREO MATCHING (reworked) ────────────────────────────────────────
-// Key changes vs previous version:
-//   STEP=1  (was 3) — every pixel, no sparse grid gaps
-//   HALF=4  (was 6) — 9×9 block, better point-feature response
-//   IR dots hard-set at 220 before this runs (dominant signal)
 function computeDisparity(fault){
-  const MAX_DISP=96;
+  const MAX_DISP=64;
   const idDisp=vdCtx.createImageData(CAM_W,CAM_H);
   disparityBuf.fill(0);
   let validDepthCount=0;
 
   {
-    // ── Copy pre-converted grayscale (IR dots already stamped as hard-set) ──
     for(let y=0;y<CAM_H;y++){
       const fy=CAM_H-1-y;
       for(let x=0;x<CAM_W;x++){
         const i=(fy*CAM_W+x)*4;
-        grayL[y*CAM_W+x]=pixL[i];   // already grayscale + IR
+        grayL[y*CAM_W+x]=pixL[i];
         grayR[y*CAM_W+x]=pixR[i];
       }
     }
 
     const ND=MAX_DISP;
-    const HALF=4,STEP=1;   // ← full-res, small block
+    const HALF=4,STEP=1;
     const RL_MIN_X=HALF+ND;
     dspLR.fill(0);dspRL.fill(0);dspValid.fill(0);
 
-    // ── SAD L→R ──────────────────────────────────────────────────────────
     for(let y=HALF;y<CAM_H-HALF;y+=STEP){
       for(let x=HALF;x<CAM_W-HALF-ND;x+=STEP){
         let bD=0,bS=1e9,sS=1e9;
@@ -1370,13 +1352,11 @@ function computeDisparity(fault){
           }
           if(s<bS){sS=bS;bS=s;bD=d;}else if(s<sS)sS=s;
         }
-        // uniqueness ratio threshold — tighter with full-res small block
         const v=(bS<2800)&&(sS===1e9||bS/sS<0.88)?bD:0;
         dspLR[y*CAM_W+x]=v;
       }
     }
 
-    // ── R→L + L-R consistency ────────────────────────────────────────────
     if(!fault){
       for(let y=HALF;y<CAM_H-HALF;y+=STEP){
         for(let x=RL_MIN_X;x<CAM_W-HALF;x+=STEP){
@@ -1407,7 +1387,6 @@ function computeDisparity(fault){
       for(let i=0;i<CAM_W*CAM_H;i++)if(dspLR[i]>0)dspValid[i]=1;
     }
 
-    // ── 3×3 median filter ────────────────────────────────────────────────
     medianBuf.set(dspLR);const win9=new Float32Array(9);
     for(let y=1;y<CAM_H-1;y++){
       for(let x=1;x<CAM_W-1;x++){
@@ -1418,30 +1397,23 @@ function computeDisparity(fault){
       }
     }
 
-    // ── Color-guided gap fill — anchored to L-R consistent pixels only ───
-    // COLOR_TOL=12: slightly looser than before since IR dots create hard edges
-    // that delimit regions naturally — fill propagates within color-coherent zones
     const COLOR_TOL=12;
     for(let pass=0;pass<4;pass++){
       for(let y=0;y<CAM_H;y++){
-        // L→R
         for(let x=1;x<CAM_W;x++){
           const i=y*CAM_W+x,j=y*CAM_W+(x-1);
           if(dspLR[i]===0&&dspValid[j]&&Math.abs(grayL[i]-grayL[j])<COLOR_TOL)dspLR[i]=dspLR[j];
         }
-        // R→L
         for(let x=CAM_W-2;x>=0;x--){
           const i=y*CAM_W+x,j=y*CAM_W+(x+1);
           if(dspLR[i]===0&&dspValid[j]&&Math.abs(grayL[i]-grayL[j])<COLOR_TOL)dspLR[i]=dspLR[j];
         }
       }
       for(let x=0;x<CAM_W;x++){
-        // T→B
         for(let y=1;y<CAM_H;y++){
           const i=y*CAM_W+x,j=(y-1)*CAM_W+x;
           if(dspLR[i]===0&&dspValid[j]&&Math.abs(grayL[i]-grayL[j])<COLOR_TOL)dspLR[i]=dspLR[j];
         }
-        // B→T
         for(let y=CAM_H-2;y>=0;y--){
           const i=y*CAM_W+x,j=(y+1)*CAM_W+x;
           if(dspLR[i]===0&&dspValid[j]&&Math.abs(grayL[i]-grayL[j])<COLOR_TOL)dspLR[i]=dspLR[j];
@@ -1449,7 +1421,6 @@ function computeDisparity(fault){
       }
     }
 
-    // ── Colormap ──────────────────────────────────────────────────────────
     for(let y=0;y<CAM_H;y++){
       for(let x=0;x<CAM_W;x++){
         let disp=dspLR[y*CAM_W+x];
@@ -1473,7 +1444,14 @@ function computeDisparity(fault){
   document.getElementById('disp-dot').classList.toggle('live',!fault);
   document.getElementById('stat-disp').textContent=fault?'FAULT':`${validDepthCount}px · SAD full-res`;
 
-  // Update dbar labels
+  // Update void px stat card every disparity tick
+  voidPxCount=CAM_W*CAM_H-validDepthCount;
+  const voidEl=document.getElementById('sv2');
+  if(voidEl&&!fault){
+    voidEl.textContent=voidPxCount.toLocaleString();
+    document.getElementById('st4').className='st '+(voidPxCount<20000?'good':voidPxCount<50000?'warn':'err');
+  }
+
   document.getElementById('dbar-far-label').textContent=`${sharedDispMin.toFixed(0)}px`;
   document.getElementById('dbar-near-label').textContent=`${sharedDispMax.toFixed(0)}px`;
 }
@@ -1481,7 +1459,6 @@ function computeDisparity(fault){
 function project3D(cam,worldPt){const v=worldPt.clone().project(cam);return{x:(v.x*0.5+0.5)*CAM_W,y:(-v.y*0.5+0.5)*CAM_H,inFrustum:v.z<1&&Math.abs(v.x)<1&&Math.abs(v.y)<1};}
 
 function drawDetections(fault){
-  // Draw from RGB buffer (clean color, no IR dots)
   const srcImg=vlCtx.createImageData(CAM_W,CAM_H);
   for(let y=0;y<CAM_H;y++)for(let x=0;x<CAM_W;x++){
     const src=((CAM_H-1-y)*CAM_W+x)*4,dst=(y*CAM_W+x)*4;
@@ -1574,7 +1551,6 @@ function buildPointCloud(fault){
   document.getElementById('pcstat').textContent=`${pcPoints.length} pts`;
 }
 
-// ── GROUND TRUTH DISPARITY ────────────────────────────────────────────────
 function drawGTDepth(fault){
   if(fault){
     vdepthCtx.fillStyle='#030608';vdepthCtx.fillRect(0,0,CAM_W,CAM_H);
@@ -1602,7 +1578,7 @@ function drawGTDepth(fault){
 
   snapshotGTDisp(zBuf);
 
-  const MAX_DISP=96;
+  const MAX_DISP=64;
   let gtDispValid=0;
   const id=vdepthCtx.createImageData(CAM_W,CAM_H);
   for(let i=0;i<CAM_W*CAM_H;i++){
@@ -1636,24 +1612,21 @@ let _3dFrameCount=0,_3dFpsDisplay=0;
 let _computeFrameCount=0,_computeFpsDisplay=0;
 let _dispFrameCount=0,_dispFpsDisplay=0;
 let _sadMs=0,_sadMsDisplay=0;
-const VISION_INTERVAL=0.12;
+const VISION_INTERVAL=0.08;
 let visionTimer=0;
 let _fpsWallLast=performance.now();
 
-// ── SCENE DIRTY FLAG ──────────────────────────────────────────────────────
-// Vision compute only runs when something actually changed.
-// Idle scene with arm at rest = no recompute needed.
-let sceneChanged=true; // true on first frame to populate panels
+let sceneChanged=true;
 let _lastYaw=0,_lastQ1=0,_lastQ2=0,_lastFault=false,_lastAirCount=-1;
 
 function markSceneChanged(){sceneChanged=true;}
 
 function updateVisionPanels(dt,fault){
-  // Check if anything actually changed since last compute
   const armMoved=Math.abs(yaw-_lastYaw)>0.0005||Math.abs(q1-_lastQ1)>0.0005||Math.abs(q2-_lastQ2)>0.0005;
   const faultChanged=fault!==_lastFault;
   const airChanged=IR_NDC_adaptive.length!==_lastAirCount;
   const cycleActive=state!==S.IDLE||diagState!=='idle';
+  // During an active cycle always recompute — don't rely on pixel diff to catch slow arm motion
   if(armMoved||faultChanged||airChanged||cycleActive||sceneChanged)sceneChanged=true;
   _lastYaw=yaw;_lastQ1=q1;_lastQ2=q2;_lastFault=fault;_lastAirCount=IR_NDC_adaptive.length;
 
@@ -1661,6 +1634,7 @@ function updateVisionPanels(dt,fault){
   const doVision=visionTimer>=VISION_INTERVAL&&sceneChanged;
   if(doVision){
     visionTimer=0;
+    const wasExplicit=sceneChanged; // true = markSceneChanged() was called, not just arm motion
     sceneChanged=false;
     _computeFrameCount++;
     _dispFrameCount++;
@@ -1669,36 +1643,27 @@ function updateVisionPanels(dt,fault){
     const prevCC=new THREE.Color();renderer.getClearColor(prevCC);const prevCA=renderer.getClearAlpha();
     renderer.setClearColor(0x040810,1);
 
-    // Render both cameras to their RT
     renderer.setRenderTarget(rtL);renderer.render(scene,stereoL);
     renderer.readRenderTargetPixels(rtL,0,0,CAM_W,CAM_H,pixL);
     renderer.setRenderTarget(rtR);renderer.render(scene,stereoR);
     renderer.readRenderTargetPixels(rtR,0,0,CAM_W,CAM_H,pixR);
     renderer.setRenderTarget(prevRT);renderer.setClearColor(prevCC,prevCA);
 
-    // ── Pixel diff — skip SAD if frame is visually identical to last ─────
-    // Strided sample of left camera RGB vs previous frame.
-    // Even if the dirty flag fired (e.g. arm angle epsilon), if the rendered
-    // pixels didn't actually change there's nothing new to compute.
-    const pixelsChanged=frameChanged(pixL,pixL_prev);
-    pixL_prev.set(pixL); // always update prev so next diff is fresh
+    // Skip pixel diff if: cycle active, OR explicit markSceneChanged() call (e.g. cam mode toggle)
+    const pixelsChanged=cycleActive||wasExplicit||frameChanged(pixL,pixL_prev);
+    pixL_prev.set(pixL);
 
     if(!pixelsChanged){
-      // Scene rendered identically — skip SAD, keep displaying last result
-      _computeFrameCount--;_dispFrameCount--; // don't count as a compute frame
+      _computeFrameCount--;_dispFrameCount--;
       return;
     }
 
-    // Save RGB buffers before any modification
     pixL_rgb.set(pixL);
     pixR_rgb.set(pixR);
 
-    // Clear IR display buffers
     pixL_ir.fill(0);
     pixR_ir.fill(0);
 
-    // Convert SAD buffers to luminance grayscale
-    // IR dots will be stamped over this as hard-set values
     for(let i=0;i<CAM_W*CAM_H;i++){
       const b=i*4;
       const gL=Math.round(0.299*pixL[b]+0.587*pixL[b+1]+0.114*pixL[b+2]);
@@ -1707,10 +1672,8 @@ function updateVisionPanels(dt,fault){
       pixR[b]=pixR[b+1]=pixR[b+2]=gR;pixR[b+3]=255;
     }
 
-    // Stamp IR dots: hard-set into SAD gray bufs, additive into IR display bufs
     stampIRDots(fault);
 
-    // GT shared range (must run before computeDisparity)
     if(!fault)updateSharedDispRange();
 
     const t0=performance.now();
@@ -1720,9 +1683,20 @@ function updateVisionPanels(dt,fault){
 
     buildPointCloud(fault);
 
-    // Display — always runs with compute, same frame
     drawCamPanel(vlCtx,pixL_rgb,pixL_ir,camMode);
     drawCamPanel(vrCtx,pixR_rgb,pixR_ir,camMode);
+    // IR overlay — show dot counts on left panel when in IR or Combined mode
+    if(camMode==='ir'||camMode==='combined'){
+      const baseDots=IR_NDC.length;
+      const suppDots=IR_NDC_adaptive.length;
+      vlCtx.fillStyle='rgba(0,0,0,0.65)';vlCtx.fillRect(0,CAM_H-28,CAM_W,28);
+      vlCtx.font='9px monospace';
+      vlCtx.fillStyle='#aaaaff';vlCtx.fillText(`base: ${baseDots} dots`,4,CAM_H-16);
+      vlCtx.fillStyle='#ff80ff';vlCtx.fillText(`adaptive: +${suppDots} · cycle ${airCycleCount}`,4,CAM_H-5);
+      if(_newDotFlashFrames>0){
+        vlCtx.fillStyle='#00ffff';vlCtx.fillText(`▲ ${_newDotFlashSet.size} new this cycle`,CAM_W/2,CAM_H-5);
+      }
+    }
     drawDetections(fault);
     drawGTDepth(fault);
     document.getElementById('stat-fl').textContent=`${CAM_W}×${CAM_H} · ${CAM_MODE_LABELS[camMode]}`;
@@ -1770,11 +1744,12 @@ function animate(ts){
       resetWpStrip();
       for(let i=0;i<vph;i++)setWpDone(i);
       if(vph<6)setWpActive(vph);
-      if(vph===1&&vphT<dt*1.5)log(`YOLOv8: "${cp.userData.type}" conf=${(.94+Math.random()*.05).toFixed(2)} lat=18ms`,'ok');
-      if(vph===2&&vphT<dt*1.5)log(`Point cloud: ${pcPoints.length}pts  depth pipeline active`,'dim');
-      if(vph===3&&vphT<dt*1.5)log('ICP pose — PASS','ok');
-      if(vph===4&&vphT<dt*1.5){hideBbox();showBbox(cp);}
-      if(vph===5&&vphT<dt*1.5){
+      if(vph===1&&!_scanLogged[1]){_scanLogged[1]=true;log(`YOLOv8: "${cp.userData.type}" conf=${(.94+Math.random()*.05).toFixed(2)} lat=18ms`,'ok');}
+      if(vph===2&&!_scanLogged[2]){_scanLogged[2]=true;log(`Point cloud: ${pcPoints.length}pts  depth pipeline active`,'dim');}
+      if(vph===3&&!_scanLogged[3]){_scanLogged[3]=true;log('ICP pose — PASS','ok');}
+      if(vph===4&&!_scanLogged[4]){_scanLogged[4]=true;hideBbox();showBbox(cp);}
+      if(vph===5&&!_scanLogged[5]){
+        _scanLogged[5]=true;
         log('MoveIt2 IK solved — 5 waypoints','ok');
         pathOrigPts=getPlannedWps();
         buildOrigPath(pathOrigPts);
@@ -1790,9 +1765,8 @@ function animate(ts){
     if(state===S.RELEASE){for(let i=0;i<12;i++)setWpDone(i);setWpActive(12);if(stateT>0.3&&held){held=false;succs++;cp.position.set(PLACE.x,PLAT_TOP+cp.userData.hh,PLACE.z);cp.userData.onPlat=false;const ct=Math.round(performance.now()-cycleStartTime-totalPausedMs);document.getElementById('sc').textContent=ct;log(`Placed — cycle: ${ct}ms`,'ok');updStats();}if(stateT>0.8){state=S.RETURN;stateT=0;goHome();setLbl('[14/14] Return home','#7dc8ff');}}
     if(state===S.RETURN){for(let i=0;i<13;i++)setWpDone(i);setWpActive(13);updateActualPath();if(stateT>2.5){state=S.DONE;stateT=0;}}
     if(state===S.DONE){log('Arm at home — cycle complete','dim');state=S.IDLE;setLbl('Idle — ready','#7dc8ff');document.getElementById('pfill').style.width='0%';document.getElementById('btnr').disabled=false;document.getElementById('st0').className='st';document.getElementById('st1').className='st good';document.getElementById('btnpause').style.display='none';document.getElementById('btnstop').style.display='none';document.getElementById('btnpause').className='';paused=false;cp=null;held=false;for(let i=0;i<14;i++)setWpDone(i);
-      // ── Adaptive IR: analyse this cycle's void map, reinforce next cycle ──
       log('Adaptive IR: analysing void mask from completed cycle...','dim');
-      setTimeout(()=>buildAdaptiveIR(),200); // slight delay so last disparity frame settles
+      setTimeout(()=>buildAdaptiveIR(),200);
       setTimeout(()=>{clearPath();resetWpStrip();},3000);
     }
     const ord=[S.SCAN,S.APPROACH,S.DESCEND,S.PICK,S.LIFT,S.TRANSIT,S.PDOWN,S.RELEASE,S.RETURN,S.DONE];
@@ -1805,7 +1779,6 @@ function animate(ts){
 }
 requestAnimationFrame(animate);
 
-// ── NEURAL NETWORK TRAINING SIMULATION ───────────────────────────────────
 let nnTraining=false,nnEpoch=0,nnBlend=0,nnTimer=null;
 let nnLossHistory=[];
 const NN_MAX_EPOCHS=100;
@@ -1911,7 +1884,7 @@ function drawNNArch(){
 function nnApplyBlend(){
   if(!nnGTReady||nnBlend<=0)return;
   const outImg=vdCtx.createImageData(CAM_W,CAM_H);
-  const MAX_DISP=96;
+  const MAX_DISP=64;
   const t=nnBlend*0.9;
   for(let i=0;i<CAM_W*CAM_H;i++){
     const pi=i*4;
@@ -1925,7 +1898,6 @@ function nnApplyBlend(){
       const compDisp=disparityBuf[i];
       let blended;
       if(compDisp<0.5){
-        // void pixel — fill stochastically toward GT with slight noise
         blended=Math.random()<nnBlend*0.95?gtDisp*(1+(Math.random()-0.5)*0.06):0;
       } else {
         blended=compDisp+(gtDisp-compDisp)*t;
@@ -2002,13 +1974,13 @@ function nnReset(){
   drawLossCurve();drawNNArch();
 }
 
-// ── ADAPTIVE IR BOOT INIT ─────────────────────────────────────────────────
-// Wait 600ms for the animation loop to populate dspLR naturally,
-// then run 2-pass init: pass 1 reads the void map, pass 2 refines it.
-// No forced compute passes — the normal loop does all the work.
 let _airBootDone=false;
 function _airBootInit(){
-  if(_airBootDone)return;_airBootDone=true;
+  if(_airBootDone)return;
+  // Gate: don't run until at least one vision compute frame has completed,
+  // so dspLR and depthBuf are populated from real rendered content.
+  if(_computeFrameCount===0&&_3dFrameCount<10){setTimeout(_airBootInit,500);return;}
+  _airBootDone=true;
   log('Adaptive IR boot: pass 1 — void map from first live frames...','dim');
   buildAdaptiveIR();
   setTimeout(()=>{
@@ -2017,7 +1989,7 @@ function _airBootInit(){
     log(`Adaptive IR boot complete — ${IR_NDC_adaptive.length} supp dots seeded`,'ok');
   },400);
 }
-setTimeout(_airBootInit,600);
+setTimeout(_airBootInit,2500);
 document.getElementById('part-size-slider').addEventListener('input',function(){applyPartScale(this.value/100);});
 </script>
 </body>
