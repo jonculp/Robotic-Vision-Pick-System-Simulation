@@ -137,6 +137,8 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
   <div id="cb">
     <div id="cr">
       <button class="br" id="btnr" onclick="startPick()">▶ Run pick cycle</button>
+      <button id="btnpause" onclick="togglePause()" style="display:none;">⏸ Pause</button>
+      <button id="btnstop" onclick="stopCycle()" class="wn" style="display:none;">■ Stop</button>
       <button id="btna" onclick="toggleAuto()">Auto: OFF</button>
       <button id="btnd" onclick="runDiag()">Diagnostics</button>
       <button onclick="addPart()">+ Add part</button>
@@ -144,6 +146,12 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
       <button class="wn" onclick="injectFault()">Inject fault</button>
       <button class="bg" id="btnpath" onclick="togglePath()">Path: ON</button>
       <button id="btncam" onclick="cycleCamMode()">Cam: RGB</button>
+      <div style="display:flex;align-items:center;gap:4px;border:.5px solid #1a3a5a;border-radius:4px;padding:3px 7px;background:#080e18;" title="Scale all parts on the platform">
+        <span style="font-size:10px;color:#4a6a88;white-space:nowrap;">&#9632; Part size</span>
+        <input type="range" id="part-size-slider" min="50" max="200" value="100" step="10" style="width:60px;cursor:pointer;accent-color:#3aa8f0;">
+        <span id="part-size-val" style="font-size:10px;color:#c8dff0;white-space:nowrap;">1.0×</span>
+      </div>
+      <span style="color:#1a2e44;font-size:14px;align-self:center;">|</span>
       <div id="font-size-btn">
         <button id="fs-s" onclick="setFontSize('s')" style="font-size:10px;">S</button>
         <button id="fs-m" onclick="setFontSize('m')" style="font-size:12px;" class="active-size">M</button>
@@ -930,6 +938,7 @@ const PCOLS=[0x4488ee,0x9955dd,0xcc6633,0x33aa66,0xcc3355,0xaaaa22];
 const PCOLS_CSS=['#4488ff','#aa55ff','#ff8833','#44cc66','#ff4477','#cccc33'];
 const parts=[];
 function partHH(t){return t===0?0.14:t===1?0.19:0.22;}
+let partScale=1.0,paused=false;
 function makePart(px,pz,idx){
   const t=idx%3;let geo;
   if(t===0)geo=new THREE.BoxGeometry(0.38,0.28,0.44);
@@ -938,12 +947,13 @@ function makePart(px,pz,idx){
   const roughness=0.25+((idx*7+t*3)%10)*0.06;
   const m=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:PCOLS[idx%PCOLS.length],roughness,metalness:0.25}));
   m.castShadow=m.receiveShadow=true;
-  const hh=partHH(t);
+  const baseHH=partHH(t),hh=baseHH*partScale;
+  m.scale.setScalar(partScale);
   m.position.set(px,PLAT_TOP+hh,pz);m.rotation.y=Math.random()*Math.PI*2;
-  m.userData={type:['Box','Cyl','Sphere'][t],idx,hh,onPlat:true};
+  m.userData={type:['Box','Cyl','Sphere'][t],idx,hh,baseHH,onPlat:true};
   scene.add(m);parts.push(m);return m;
 }
-[[-1.0,-0.6],[-0.7,0.9],[0.8,-0.8],[-1.1,0.4],[0.7,-1.0]].forEach(([x,z],i)=>makePart(x,z,i));
+{const placed=[];for(let i=0;i<5;i++){const pos=safeRandPos(placed);const p=makePart(pos.x,pos.z,i);placed.push(p);}}
 
 let bboxObj=null;
 function showBbox(p){if(bboxObj){scene.remove(bboxObj);bboxObj=null;}bboxObj=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(0.36,0.36,0.36)),new THREE.LineBasicMaterial({color:0x4dffaa}));bboxObj.layers.set(2);bboxObj.position.copy(p.position);scene.add(bboxObj);}
@@ -1165,14 +1175,19 @@ function startPick(){
   WPA={x:px,y:partTop+1.5,z:pz};WPP={x:px,y:partTop+0.01,z:pz};WPL={x:px,y:partTop+2.0,z:pz};
   WPM={x:(px+PLACE.x)/2,y:partTop+2.5,z:(pz+PLACE.z)/2};WPQ={x:PLACE.x,y:PLAT_TOP+hh*2+1.5,z:PLACE.z};WPPS={x:PLACE.x,y:PLAT_TOP+hh*2+0.01,z:PLACE.z};
   log(`Pick #${picks} — ${cp.userData.type} @ (${px.toFixed(2)},${pz.toFixed(2)})`,'info');
-  document.getElementById('btnr').disabled=true;document.getElementById('st0').className='st active';updStats();
+  document.getElementById('btnr').disabled=true;
+  document.getElementById('btnpause').style.display='';
+  document.getElementById('btnstop').style.display='';
+  document.getElementById('st0').className='st active';
+  document.getElementById('st1').className='st active';
+  updStats();
 }
 function toggleAuto(){autoMode=!autoMode;const btn=document.getElementById('btna');btn.textContent='Auto: '+(autoMode?'ON':'OFF');btn.className=autoMode?'bg':'';}
-function addPart(){const pos=safeRandPos();const p=makePart(pos.x,pos.z,parts.length);markSceneChanged();log(`Part added — ${p.userData.type}`,'ok');}
-function safeRandPos(){const EXCL=[{x:PLACE.x,z:PLACE.z,r:0.55}];for(let a=0;a<200;a++){const x=(Math.random()-.5)*3.2,z=(Math.random()-.5)*3.2;if(Math.abs(x)>1.8||Math.abs(z)>1.8)continue;if(EXCL.every(e=>Math.hypot(x-e.x,z-e.z)>e.r))return{x,z};}return{x:-1.0,z:-1.0};}
+function addPart(){const pos=safeRandPos(parts.filter(p=>p.visible&&p.userData.onPlat));const p=makePart(pos.x,pos.z,parts.length);markSceneChanged();log(`Part added — ${p.userData.type}`,'ok');}
+function safeRandPos(existing=[]){const EXCL=[{x:PLACE.x,z:PLACE.z,r:0.55}];existing.forEach(p=>{EXCL.push({x:p.position.x,z:p.position.z,r:0.5*p.scale.x+0.05});});for(let a=0;a<200;a++){const x=(Math.random()-.5)*3.2,z=(Math.random()-.5)*3.2;if(Math.abs(x)>1.8||Math.abs(z)>1.8)continue;if(EXCL.every(e=>Math.hypot(x-e.x,z-e.z)>e.r))return{x,z};}return{x:-1.0,z:-1.0};}
 function randomizeParts(){
   if(state!==S.IDLE||diagState!=='idle'){log('Cannot randomize during active cycle','warn');return;}
-  parts.forEach(p=>{const pos=safeRandPos();p.position.x=pos.x;p.position.z=pos.z;p.rotation.y=Math.random()*Math.PI*2;p.userData.onPlat=true;p.visible=true;});
+  const placed=[];parts.forEach(p=>{const pos=safeRandPos(placed);p.position.x=pos.x;p.position.z=pos.z;p.rotation.y=Math.random()*Math.PI*2;p.userData.onPlat=true;p.visible=true;placed.push(p);});
   IR_NDC_adaptive=[];airCycleCount=0;
   document.getElementById('t-air').textContent='scanning...';
   document.getElementById('t-air').style.color='#c8e0f4';
@@ -1183,6 +1198,40 @@ function randomizeParts(){
   },600);
 }
 function runDiag(){startDiag();}
+function applyPartScale(s){
+  partScale=s;
+  document.getElementById('part-size-val').textContent=partScale.toFixed(1)+'×';
+  parts.forEach(p=>{
+    p.scale.setScalar(partScale);
+    p.userData.hh=p.userData.baseHH*partScale;
+    if(p.userData.onPlat&&p.visible&&!(held&&p===cp))p.position.y=PLAT_TOP+p.userData.hh;
+  });
+  markSceneChanged();
+}
+function togglePause(){
+  paused=!paused;
+  const btn=document.getElementById('btnpause');
+  btn.textContent=paused?'▶ Resume':'⏸ Pause';
+  btn.className=paused?'bg':'';
+  log(paused?'Cycle paused':'Cycle resumed',paused?'warn':'ok');
+}
+function stopCycle(){
+  if(state===S.IDLE)return;
+  if(held&&cp){held=false;cp.position.set(cp.position.x,PLAT_TOP+cp.userData.hh,cp.position.z);cp.userData.onPlat=true;}
+  state=S.IDLE;paused=false;stateT=0;vph=0;vphT=0;
+  goHome();beam.material.opacity=0;hideBbox();clearPath();resetWpStrip();
+  setLbl('Idle — ready');
+  document.getElementById('btnr').disabled=false;
+  document.getElementById('btnpause').style.display='none';
+  document.getElementById('btnstop').style.display='none';
+  document.getElementById('btnpause').textContent='⏸ Pause';
+  document.getElementById('btnpause').className='';
+  document.getElementById('st0').className='st';
+  document.getElementById('st1').className='st';
+  document.getElementById('pfill').style.width='0%';
+  picks--;updStats();
+  log('Pick cycle stopped','warn');
+}
 function injectFault(){
   calibFaultActive=true;reprErr=2.3;
   markSceneChanged();
@@ -1695,13 +1744,14 @@ function animate(ts){
   tr.material.emissiveIntensity=0.4+Math.sin(ts/1000*2.5)*0.25;
   if(diagMarker)diagMarker.material.opacity=0.6+Math.sin(ts/1000*4)*0.2;
   tickCamInertia();
+  if(held&&cp){cp.position.set(cupFace.x,cupFace.y-cp.userData.hh,cupFace.z);if(bboxObj)bboxObj.position.copy(cp.position);}
+  if(!paused){
   if(state===S.IDLE&&diagState==='idle'){tyaw=HOME.yaw;tq1=HOME.q1;tq2=HOME.q2;}
   if(autoMode&&state===S.IDLE&&diagState==='idle'){autoTimer+=dt;if(autoTimer>1.8){autoTimer=0;startPick();}}
   if(diagState==='stage2'){
     const p=DIAG_POSES[diagPoseIdx];setTarget(p.x,p.y,p.z);setLbl(`[Diag S2] Pose ${diagPoseIdx+1}/${DIAG_POSES.length}`,'#fbbf24');diagPoseT+=dt;
     if(cupNear(p,0.05)&&diagPoseT>=1.0){const err=Math.sqrt((cupFace.x-p.x)**2+(cupFace.y-p.y)**2+(cupFace.z-p.z)**2);diagErrors.push(err);log(`Stage 2: pose ${diagPoseIdx+1} err=${(err*1000).toFixed(2)}mm`,'dim');diagPoseIdx++;diagPoseT=0;if(diagPoseIdx<DIAG_POSES.length){setTarget(DIAG_POSES[diagPoseIdx].x,DIAG_POSES[diagPoseIdx].y,DIAG_POSES[diagPoseIdx].z);showDiagMarker(DIAG_POSES[diagPoseIdx]);}else finishDiag();}
   }
-  if(held&&cp){cp.position.set(cupFace.x,cupFace.y-cp.userData.hh,cupFace.z);if(bboxObj)bboxObj.position.copy(cp.position);}
   if(state!==S.IDLE){
     stateT+=dt;
     if(state===S.SCAN){
@@ -1730,7 +1780,7 @@ function animate(ts){
     if(state===S.PDOWN){const f=clamp(stateT/1.5,0,1);setTarget(WPPS.x,lerp(WPQ.y,WPPS.y,eio(f)),WPPS.z);updateActualPath();for(let i=0;i<11;i++)setWpDone(i);setWpActive(11);if(cupNear(WPPS,0.12)||stateT>4){state=S.RELEASE;stateT=0;setLbl('[13/14] Release','#34d399');}}
     if(state===S.RELEASE){for(let i=0;i<12;i++)setWpDone(i);setWpActive(12);if(stateT>0.3&&held){held=false;succs++;cp.position.set(PLACE.x,PLAT_TOP+cp.userData.hh,PLACE.z);cp.userData.onPlat=false;const ct=Math.round(performance.now()-cycleStartTime);document.getElementById('sc').textContent=ct;log(`Placed — cycle: ${ct}ms`,'ok');updStats();}if(stateT>0.8){state=S.RETURN;stateT=0;goHome();setLbl('[14/14] Return home','#7dc8ff');}}
     if(state===S.RETURN){for(let i=0;i<13;i++)setWpDone(i);setWpActive(13);updateActualPath();if(stateT>2.5){state=S.DONE;stateT=0;}}
-    if(state===S.DONE){log('Arm at home — cycle complete','dim');state=S.IDLE;setLbl('Idle — ready','#7dc8ff');document.getElementById('pfill').style.width='0%';document.getElementById('btnr').disabled=false;document.getElementById('st0').className='st';cp=null;held=false;for(let i=0;i<14;i++)setWpDone(i);
+    if(state===S.DONE){log('Arm at home — cycle complete','dim');state=S.IDLE;setLbl('Idle — ready','#7dc8ff');document.getElementById('pfill').style.width='0%';document.getElementById('btnr').disabled=false;document.getElementById('st0').className='st';document.getElementById('st1').className='st good';document.getElementById('btnpause').style.display='none';document.getElementById('btnstop').style.display='none';document.getElementById('btnpause').className='';paused=false;cp=null;held=false;for(let i=0;i<14;i++)setWpDone(i);
       // ── Adaptive IR: analyse this cycle's void map, reinforce next cycle ──
       log('Adaptive IR: analysing void mask from completed cycle...','dim');
       setTimeout(()=>buildAdaptiveIR(),200); // slight delay so last disparity frame settles
@@ -1739,6 +1789,8 @@ function animate(ts){
     const ord=[S.SCAN,S.APPROACH,S.DESCEND,S.PICK,S.LIFT,S.TRANSIT,S.PDOWN,S.RELEASE,S.RETURN,S.DONE];
     const idx=ord.indexOf(state);if(idx>=0)document.getElementById('pfill').style.width=clamp(idx/ord.length*100,0,100).toFixed(0)+'%';
   }
+  }
+  if(state!==S.IDLE&&state!==S.RETURN&&state!==S.DONE&&cycleStartTime>0)document.getElementById('sc').textContent=Math.round(performance.now()-cycleStartTime);
   updateVisionPanels(dt,calibFaultActive);
   renderer.setRenderTarget(null);renderer.render(scene,camera);
 }
@@ -1959,6 +2011,7 @@ function _airBootInit(){
   },400);
 }
 setTimeout(_airBootInit,600);
+document.getElementById('part-size-slider').addEventListener('input',function(){applyPartScale(this.value/100);});
 </script>
 </body>
 </html>
