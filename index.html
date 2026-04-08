@@ -39,7 +39,7 @@ canvas{display:block;width:100%;height:100%;}
 .sv{font-size:17px;font-weight:500;color:#c8dff0;}.ss{font-size:10px;color:#2e4a60;margin-top:2px;}
 #cb{background:#0a1520;border:.5px solid #1a2e44;border-radius:4px;padding:7px 10px;margin:6px 0;}
 #cr{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
-button{font-size:12px;padding:5px 13px;background:linear-gradient(160deg,#0d1e2e,#0a1622);border:.5px solid #1e3448;border-radius:4px;color:#a8c8e0;cursor:pointer;transition:background .15s,border-color .15s,color .15s;}
+button{font-size:12px;padding:5px 13px;min-width:88px;background:linear-gradient(160deg,#0d1e2e,#0a1622);border:.5px solid #1e3448;border-radius:4px;color:#a8c8e0;cursor:pointer;transition:background .15s,border-color .15s,color .15s;}
 button:hover:not(:disabled){background:linear-gradient(160deg,#142a40,#0f2030);border-color:#2a4460;color:#c8e0f4;}
 button:disabled{opacity:.35;cursor:default;}
 .br{border-color:#2a5080;color:#7dc8ff;background:linear-gradient(160deg,#0d1e30,#0a1828);}
@@ -82,22 +82,23 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
 .dbar-grad{flex:1;height:6px;border-radius:2px;}
 .dbar-lbl{font-size:9px;color:#2e4a60;white-space:nowrap;}
 /* ── FONT SIZE SCALE ─────────────────────────────────────────────────── */
+.ctrl-lbl{font-size:10px;color:#4a6a88;white-space:nowrap;}
 #root.fs-s .sl{font-size:9px;} #root.fs-s .sv{font-size:14px;} #root.fs-s .ss{font-size:9px;}
 #root.fs-s button{font-size:10px;padding:3px 8px;} #root.fs-s .badge{font-size:10px;}
 #root.fs-s .ll{font-size:10px;} #root.fs-s .wpnode{font-size:8px;}
-#root.fs-s .vphdr{font-size:9px;} #root.fs-s .vpstat{font-size:9px;} #root.fs-s .lbl2{font-size:9px;}
+#root.fs-s .vphdr{font-size:9px;} #root.fs-s .vpstat{font-size:9px;} #root.fs-s .lbl2{font-size:9px;} #root.fs-s .ctrl-lbl{font-size:9px;} #root.fs-s .cam-toggle{font-size:9px !important;padding:1px 6px !important;}
 #root.fs-s #timing-bar{font-size:9px;}
 #root.fs-s #rvf li,#root.fs-s #rvf>div>div:first-child{font-size:9px !important;}
 #root.fs-m .sl{font-size:12px;} #root.fs-m .sv{font-size:21px;} #root.fs-m .ss{font-size:12px;}
 #root.fs-m button{font-size:14px;padding:7px 15px;} #root.fs-m .badge{font-size:13px;padding:4px 10px;}
 #root.fs-m .ll{font-size:14px;line-height:1.9;} #root.fs-m .wpnode{font-size:11px;padding:5px 8px;}
-#root.fs-m .vphdr{font-size:12px;} #root.fs-m .vpstat{font-size:12px;} #root.fs-m .lbl2{font-size:12px;}
+#root.fs-m .vphdr{font-size:12px;} #root.fs-m .vpstat{font-size:12px;} #root.fs-m .lbl2{font-size:12px;} #root.fs-m .ctrl-lbl{font-size:12px;} #root.fs-m .cam-toggle{font-size:11px !important;padding:3px 9px !important;}
 #root.fs-m #timing-bar{font-size:12px;}
 #root.fs-m #rvf li,#root.fs-m #rvf>div>div:first-child{font-size:12px !important;}
 #root.fs-l .sl{font-size:14px;} #root.fs-l .sv{font-size:26px;} #root.fs-l .ss{font-size:13px;}
 #root.fs-l button{font-size:16px;padding:9px 18px;} #root.fs-l .badge{font-size:15px;padding:5px 12px;}
 #root.fs-l .ll{font-size:16px;line-height:2.0;} #root.fs-l .wpnode{font-size:13px;padding:6px 10px;}
-#root.fs-l .vphdr{font-size:14px;} #root.fs-l .vpstat{font-size:13px;} #root.fs-l .lbl2{font-size:14px;}
+#root.fs-l .vphdr{font-size:14px;} #root.fs-l .vpstat{font-size:13px;} #root.fs-l .lbl2{font-size:14px;} #root.fs-l .ctrl-lbl{font-size:14px;} #root.fs-l .cam-toggle{font-size:13px !important;padding:4px 11px !important;}
 #root.fs-l #timing-bar{font-size:14px;}
 #root.fs-l #rvf li,#root.fs-l #rvf>div>div:first-child{font-size:14px !important;}
 .hiw-card{font-size:10px;line-height:1.6;}
@@ -120,7 +121,7 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
 #root.fs-s .nn-meta{font-size:9px;} #root.fs-s .nn-small{font-size:7px;}
 #root.fs-m .nn-meta{font-size:12px;} #root.fs-m .nn-small{font-size:10px;}
 #root.fs-l .nn-meta{font-size:14px;} #root.fs-l .nn-small{font-size:12px;}
-#font-size-btn button{padding:4px 8px;min-width:0;border-radius:3px;}
+#font-size-btn button{padding:1px 8px;min-width:0;border-radius:3px;}
 #font-size-btn button.active-size{background:linear-gradient(160deg,#0d2a3e,#0a1e2e);border-color:#3aa8f0;color:#7dc8ff;}
 @media(max-width:640px){
   #root:not(.fs-s):not(.fs-l) .ll{font-size:14px;line-height:1.9;}
@@ -145,17 +146,18 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
       <button onclick="randomizeParts()">⟳ Randomize</button>
       <button class="wn" onclick="injectFault()">Inject fault</button>
       <button class="bg" id="btnpath" onclick="togglePath()">Path: ON</button>
-      <button id="btncam" onclick="cycleCamMode()">Cam: RGB</button>
-      <div style="display:flex;align-items:center;gap:4px;border:.5px solid #1a3a5a;border-radius:4px;padding:3px 7px;background:#080e18;" title="Scale all parts on the platform">
-        <span style="font-size:10px;color:#4a6a88;white-space:nowrap;">&#9632; Part size</span>
+      <div style="display:flex;align-items:center;gap:4px;border:.5px solid #1a3a5a;border-radius:4px;padding:5px 7px;background:#080e18;" title="Scale all parts on the platform">
+        <span class="ctrl-lbl">&#9632; Part size</span>
         <input type="range" id="part-size-slider" min="50" max="200" value="100" step="10" style="width:60px;cursor:pointer;accent-color:#3aa8f0;">
-        <span id="part-size-val" style="font-size:10px;color:#c8dff0;white-space:nowrap;">1.0×</span>
+        <span id="part-size-val" class="ctrl-lbl" style="color:#c8dff0;">1.0×</span>
       </div>
-      <span style="color:#1a2e44;font-size:14px;align-self:center;">|</span>
-      <div id="font-size-btn">
-        <button id="fs-s" onclick="setFontSize('s')" style="font-size:10px;">S</button>
-        <button id="fs-m" onclick="setFontSize('m')" style="font-size:12px;" class="active-size">M</button>
-        <button id="fs-l" onclick="setFontSize('l')" style="font-size:15px;">L</button>
+      <div style="display:flex;align-items:center;gap:4px;border:.5px solid #1a3a5a;border-radius:4px;padding:5px 7px;background:#080e18;">
+        <span class="ctrl-lbl">&#9632; Text size</span>
+        <div id="font-size-btn">
+          <button id="fs-s" onclick="setFontSize('s')">S</button>
+          <button id="fs-m" onclick="setFontSize('m')" class="active-size">M</button>
+          <button id="fs-l" onclick="setFontSize('l')">L</button>
+        </div>
       </div>
     </div>
   </div>
@@ -209,6 +211,7 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
     <div id="panels-col">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
         <div class="lbl2" style="margin-bottom:0;">Vision panels</div>
+        <button id="btncam" onclick="cycleCamMode()" class="cam-toggle">Cam: RGB</button>
       </div>
       <div class="vgrid">
         <div class="vpanel">
@@ -564,7 +567,7 @@ const CAM_BOOM_Y=5.5;
 const CAM_BOOM_END_X=0;
 const CAM_BASE_Y=CAM_BOOM_Y-0.3;
 const CAM_BASE_Z=0;
-const BASELINE=0.85;
+const BASELINE=0.5;
 
 const cpole=mkCyl(0.07,0.07,CAM_BOOM_Y,0x1c2a3a,0.6,0.45);
 cpole.position.set(CAM_POLE_X,CAM_BOOM_Y/2,0);scene.add(cpole);
@@ -600,7 +603,7 @@ stereoR.quaternion.copy(stereoL.quaternion);
 const FOV_RAD=52*Math.PI/180;
 const FOCAL_PX=CAM_H/(2*Math.tan(FOV_RAD/2));
 const BASELINE_M=BASELINE*2;
-const DEPTH_MIN=5.5,DEPTH_MAX=7.5;
+const DEPTH_MIN=4.0,DEPTH_MAX=5.5;
 
 // ── DEPTH-CORRECT IR DOT STAMP ────────────────────────────────────────────
 const projCam=new THREE.PerspectiveCamera(52,CAM_W/CAM_H,0.1,20);
@@ -1159,7 +1162,7 @@ function finishDiag(){
 
 const S={IDLE:0,SCAN:1,APPROACH:2,DESCEND:3,PICK:4,LIFT:5,TRANSIT:6,PDOWN:7,RELEASE:8,RETURN:9,DONE:10};
 let state=S.IDLE,stateT=0,cp=null,held=false,cupFace=new THREE.Vector3();
-let cycleStartTime=0;
+let cycleStartTime=0,totalPausedMs=0,pauseStartTime=0;
 let WPA,WPP,WPL,WPM,WPQ,WPPS,vph=0,vphT=0;
 const SCAN_DUR=[0.22,0.28,0.32,0.32,0.12,0.22];
 function setLbl(txt){const el=document.getElementById('plbl');el.textContent=txt;el.style.color='#7dc8ff';}
@@ -1169,7 +1172,7 @@ function startPick(){
   const av=parts.filter(p=>p.visible&&p.userData.onPlat);
   if(!av.length){log('No parts on platform','warn');return;}
   cp=av[Math.floor(Math.random()*av.length)];picks++;held=false;stateT=0;vph=0;vphT=0;
-  cycleStartTime=performance.now();
+  cycleStartTime=performance.now();totalPausedMs=0;
   state=S.SCAN;beam.material.opacity=0.05;
   const px=cp.position.x,pz=cp.position.z,hh=cp.userData.hh,partTop=PLAT_TOP+hh*2;
   WPA={x:px,y:partTop+1.5,z:pz};WPP={x:px,y:partTop+0.01,z:pz};WPL={x:px,y:partTop+2.0,z:pz};
@@ -1210,6 +1213,8 @@ function applyPartScale(s){
 }
 function togglePause(){
   paused=!paused;
+  if(paused){pauseStartTime=performance.now();}
+  else{totalPausedMs+=performance.now()-pauseStartTime;}
   const btn=document.getElementById('btnpause');
   btn.textContent=paused?'▶ Resume':'⏸ Pause';
   btn.className=paused?'bg':'';
@@ -1255,7 +1260,7 @@ function injectFault(){
   },4500);
 }
 
-function colmapTurbo(t){
+function _colmapTurboCompute(t){
   t=clamp(t,0,1);
   let r,g,b;
   if(t<0.25){r=0;g=Math.round(t*4*180);b=Math.round(80+t*4*175);}
@@ -1264,6 +1269,10 @@ function colmapTurbo(t){
   else{const u=(t-0.75)*4;r=255;g=Math.round(255-u*200);b=0;}
   return[r,g,b];
 }
+// Precompute 1024-entry LUT — replaces per-pixel colmapTurbo calls (~230k/frame)
+const TURBO_LUT=new Uint8Array(1024*3);
+for(let i=0;i<1024;i++){const[r,g,b]=_colmapTurboCompute(i/1023);TURBO_LUT[i*3]=r;TURBO_LUT[i*3+1]=g;TURBO_LUT[i*3+2]=b;}
+function colmapTurbo(t){const i=Math.min(1023,clamp(t,0,1)*1023|0)*3;return[TURBO_LUT[i],TURBO_LUT[i+1],TURBO_LUT[i+2]];}
 
 function buildGradient(el,fn,steps=32){
   const stops=[];for(let i=0;i<=steps;i++){const t=i/steps;const[r,g,b]=fn(t);stops.push(`rgb(${r},${g},${b}) ${(t*100).toFixed(0)}%`);}
@@ -1778,7 +1787,7 @@ function animate(ts){
     if(state===S.LIFT){const f=clamp(stateT/1.2,0,1);setTarget(WPL.x,lerp(WPP.y,WPL.y,eio(f)),WPL.z);updateActualPath();for(let i=0;i<9;i++)setWpDone(i);setWpActive(9);if(cupNear(WPL,0.18)||stateT>3){state=S.TRANSIT;stateT=0;setLbl('[11/14] Transit','#4ade80');}}
     if(state===S.TRANSIT){const f=clamp(stateT/2.2,0,1),ef=eio(f);let tx,ty,tz;if(ef<0.5){const t2=ef/0.5;tx=lerp(WPL.x,WPM.x,t2);ty=lerp(WPL.y,WPM.y,t2);tz=lerp(WPL.z,WPM.z,t2);}else{const t2=(ef-0.5)/0.5;tx=lerp(WPM.x,WPQ.x,t2);ty=lerp(WPM.y,WPQ.y,t2);tz=lerp(WPM.z,WPQ.z,t2);}setTarget(tx,ty,tz);updateActualPath();for(let i=0;i<10;i++)setWpDone(i);setWpActive(10);if(cupNear(WPQ,0.18)||stateT>5){state=S.PDOWN;stateT=0;setLbl('[12/14] Place descend','#34d399');}}
     if(state===S.PDOWN){const f=clamp(stateT/1.5,0,1);setTarget(WPPS.x,lerp(WPQ.y,WPPS.y,eio(f)),WPPS.z);updateActualPath();for(let i=0;i<11;i++)setWpDone(i);setWpActive(11);if(cupNear(WPPS,0.12)||stateT>4){state=S.RELEASE;stateT=0;setLbl('[13/14] Release','#34d399');}}
-    if(state===S.RELEASE){for(let i=0;i<12;i++)setWpDone(i);setWpActive(12);if(stateT>0.3&&held){held=false;succs++;cp.position.set(PLACE.x,PLAT_TOP+cp.userData.hh,PLACE.z);cp.userData.onPlat=false;const ct=Math.round(performance.now()-cycleStartTime);document.getElementById('sc').textContent=ct;log(`Placed — cycle: ${ct}ms`,'ok');updStats();}if(stateT>0.8){state=S.RETURN;stateT=0;goHome();setLbl('[14/14] Return home','#7dc8ff');}}
+    if(state===S.RELEASE){for(let i=0;i<12;i++)setWpDone(i);setWpActive(12);if(stateT>0.3&&held){held=false;succs++;cp.position.set(PLACE.x,PLAT_TOP+cp.userData.hh,PLACE.z);cp.userData.onPlat=false;const ct=Math.round(performance.now()-cycleStartTime-totalPausedMs);document.getElementById('sc').textContent=ct;log(`Placed — cycle: ${ct}ms`,'ok');updStats();}if(stateT>0.8){state=S.RETURN;stateT=0;goHome();setLbl('[14/14] Return home','#7dc8ff');}}
     if(state===S.RETURN){for(let i=0;i<13;i++)setWpDone(i);setWpActive(13);updateActualPath();if(stateT>2.5){state=S.DONE;stateT=0;}}
     if(state===S.DONE){log('Arm at home — cycle complete','dim');state=S.IDLE;setLbl('Idle — ready','#7dc8ff');document.getElementById('pfill').style.width='0%';document.getElementById('btnr').disabled=false;document.getElementById('st0').className='st';document.getElementById('st1').className='st good';document.getElementById('btnpause').style.display='none';document.getElementById('btnstop').style.display='none';document.getElementById('btnpause').className='';paused=false;cp=null;held=false;for(let i=0;i<14;i++)setWpDone(i);
       // ── Adaptive IR: analyse this cycle's void map, reinforce next cycle ──
@@ -1790,7 +1799,7 @@ function animate(ts){
     const idx=ord.indexOf(state);if(idx>=0)document.getElementById('pfill').style.width=clamp(idx/ord.length*100,0,100).toFixed(0)+'%';
   }
   }
-  if(state!==S.IDLE&&state!==S.RETURN&&state!==S.DONE&&cycleStartTime>0)document.getElementById('sc').textContent=Math.round(performance.now()-cycleStartTime);
+  if(!paused&&state!==S.IDLE&&state!==S.RETURN&&state!==S.DONE&&cycleStartTime>0)document.getElementById('sc').textContent=Math.round(performance.now()-cycleStartTime-totalPausedMs);
   updateVisionPanels(dt,calibFaultActive);
   renderer.setRenderTarget(null);renderer.render(scene,camera);
 }
@@ -1901,9 +1910,9 @@ function drawNNArch(){
 
 function nnApplyBlend(){
   if(!nnGTReady||nnBlend<=0)return;
-  const compImg=vdCtx.getImageData(0,0,CAM_W,CAM_H);
   const outImg=vdCtx.createImageData(CAM_W,CAM_H);
   const MAX_DISP=96;
+  const t=nnBlend*0.9;
   for(let i=0;i<CAM_W*CAM_H;i++){
     const pi=i*4;
     const gtZ=nnGTDisp[i];
@@ -1913,22 +1922,20 @@ function nnApplyBlend(){
       outImg.data[pi]=18;outImg.data[pi+1]=32;outImg.data[pi+2]=52;outImg.data[pi+3]=255;
     } else {
       const gtDisp=clamp((FOCAL_PX*BASELINE_M)/gtZ,0,MAX_DISP);
-      const gtDn=clamp((gtDisp-sharedDispMin)/(sharedDispMax-sharedDispMin),0,1);
-      const[gdr,gdg,gdb]=colmapTurbo(gtDn);
-      const cr=compImg.data[pi],cg=compImg.data[pi+1],cb=compImg.data[pi+2];
-      const isVoid=cr<12&&cg<12&&cb<20;
-      if(isVoid){
-        if(Math.random()<nnBlend*0.95){
-          const noise=(Math.random()-0.5)*0.06;
-          const dn=clamp(gtDn+noise,0,1);
-          const[nr,ng,nb]=colmapTurbo(dn);
-          outImg.data[pi]=nr;outImg.data[pi+1]=ng;outImg.data[pi+2]=nb;
-        } else {outImg.data[pi]=8;outImg.data[pi+1]=8;outImg.data[pi+2]=12;}
+      const compDisp=disparityBuf[i];
+      let blended;
+      if(compDisp<0.5){
+        // void pixel — fill stochastically toward GT with slight noise
+        blended=Math.random()<nnBlend*0.95?gtDisp*(1+(Math.random()-0.5)*0.06):0;
       } else {
-        const t=nnBlend*0.9;
-        outImg.data[pi]=Math.round(cr+(gdr-cr)*t);
-        outImg.data[pi+1]=Math.round(cg+(gdg-cg)*t);
-        outImg.data[pi+2]=Math.round(cb+(gdb-cb)*t);
+        blended=compDisp+(gtDisp-compDisp)*t;
+      }
+      if(blended<0.5){
+        outImg.data[pi]=8;outImg.data[pi+1]=8;outImg.data[pi+2]=12;
+      } else {
+        const dn=clamp((blended-sharedDispMin)/(sharedDispMax-sharedDispMin),0,1);
+        const li=Math.min(1023,dn*1023|0)*3;
+        outImg.data[pi]=TURBO_LUT[li];outImg.data[pi+1]=TURBO_LUT[li+1];outImg.data[pi+2]=TURBO_LUT[li+2];
       }
       outImg.data[pi+3]=255;
     }
