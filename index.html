@@ -767,6 +767,21 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
         <span class="hiw-term">Reprojection error</span>
         <span class="hiw-def"> — Measures stereo calibration quality: how many pixels a known 3D point projects away from its expected image position. Below 0.5px is good; above 0.5px indicates calibration drift and degrades depth accuracy. Use Inject fault to simulate a calibration failure and watch all vision panels degrade.</span>
       </div>
+      <div class="hiw-card">
+        <div class="hiw-steps">calibration · not simulated</div>
+        <span class="hiw-term">Hand-eye calibration</span>
+        <span class="hiw-def"> — Determines the rigid transform between the robot's tool-center-point (TCP) and the camera frame. Without this, depth measurements in camera coordinates can't be converted into robot joint commands. Performed once at setup by moving the arm to a set of known poses while a calibration target is in view, then solving for the unknown transform. Errors here shift every pick target by a fixed offset — the arm is consistently wrong in the same direction.</span>
+      </div>
+      <div class="hiw-card">
+        <div class="hiw-steps">calibration · not simulated</div>
+        <span class="hiw-term">Gripper and TCP calibration</span>
+        <span class="hiw-def"> — The tool-center-point must be registered to the physical tip of the suction cup (or finger tips for jaw grippers). If the cup is replaced or bent, this offset changes. Separately, the wrist camera's pose relative to the cup rim must be measured so the rim-fit projection stays accurate. In practice these are measured with a touch probe or with structured light against a flat surface.</span>
+      </div>
+      <div class="hiw-card">
+        <div class="hiw-steps">calibration · not simulated</div>
+        <span class="hiw-term">Recalibration triggers</span>
+        <span class="hiw-def"> — Stereo calibration drifts over time as cameras shift thermally or after physical disturbance. Production systems watch reprojection error continuously and flag a recalibration request when it exceeds a threshold. Other triggers: a pick miss rate spike (arm is missing targets), a force/torque anomaly pattern (contacts are off-center), or a scheduled maintenance window. Recalibration replays the original calibration routine without stopping the line if a parallel workcell is available.</span>
+      </div>
     </div>
 
   </div>
