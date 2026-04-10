@@ -936,8 +936,7 @@ const vacContactHist=new Uint8Array(VAC_H_LEN);
 const vacSlipHist=new Float32Array(VAC_H_LEN);
 const vacStateHist=new Uint8Array(VAC_H_LEN);
 const reprErrHist=new Float32Array(VAC_H_LEN);
-let vacHistWr=0,vacSampleTimer=0;
-const VAC_SAMPLE_RATE=1/30;
+let vacHistWr=0,vacSampleTimer=0,tlFrozen=false;
 let _newDotFlashSet=new Set(),_newDotFlashFrames=0,voidPxCount=0;
 const PLAT_HALF=2.0;
 
@@ -1128,6 +1127,8 @@ function startPick(){
   if(!av.length){log('No parts on platform','warn');return;}
   cp=av[Math.floor(Math.random()*av.length)];picks++;held=false;stateT=0;vph=0;vphT=0;_scanLogged={};
   cycleStartTime=performance.now();totalPausedMs=0;
+  vacHistWr=0;vacSampleTimer=0;tlFrozen=false;
+  vacFzHist.fill(0);vacContactHist.fill(0);vacSlipHist.fill(0);vacStateHist.fill(0);reprErrHist.fill(0);
   state=S.SCAN;beam.material.opacity=0.05;
   const px=cp.position.x,pz=cp.position.z,hh=cp.userData.hh,partTop=PLAT_TOP+hh*2;
   WPA={x:px,y:partTop+1.5,z:pz};WPP={x:px,y:partTop+0.01,z:pz};WPL={x:px,y:partTop+2.0,z:pz};
@@ -1451,46 +1452,46 @@ function drawTimelineOverlay(fault){
   const W=640,H=100,FZ_H=40,ERR_H=40,ST_H=14,ERR_Y=FZ_H+1,ST_Y=FZ_H+ERR_H+2;
   const FZ_MAX=4.0,ERR_MAX=3.0;
   const ctx=overlayTlCtx;
+  // Don't draw if frozen with no data yet
+  if(tlFrozen&&vacHistWr===0){ctx.clearRect(0,0,W,H);return;}
   ctx.clearRect(0,0,W,H);
   ctx.fillStyle='rgba(3,6,14,0.58)';ctx.fillRect(0,0,W,H);
+  // Map slot index (0..vacHistWr-1) to x pixel (0..W-1)
+  const nSlots=Math.max(vacHistWr,1);
+  const slot2x=i=>Math.round(i/nSlots*W);
   // ── Fz trace ────────────────────────────────────────────────────────────
   const fz2y=fz=>FZ_H-1-Math.round(clamp(Math.abs(fz)/FZ_MAX,0,1)*(FZ_H-4));
-  // 2N threshold line
-  ctx.strokeStyle='#1a2e44';ctx.lineWidth=1;ctx.setLineDash([2,4]);
-  ctx.beginPath();ctx.moveTo(0,fz2y(-2));ctx.lineTo(W,fz2y(-2));ctx.stroke();ctx.setLineDash([]);
-  for(let i=0;i<320;i++){
-    const idx=(vacHistWr-320+i+VAC_H_LEN)%VAC_H_LEN;
-    const fz=vacFzHist[idx];const contact=vacContactHist[idx];const slip=vacSlipHist[idx];
-    const ty=fz2y(fz);const bh=FZ_H-1-ty;const px=i*2;
+  ctx.strokeStyle='rgba(30,60,90,0.5)';ctx.lineWidth=1;ctx.setLineDash([2,4]);
+  ctx.beginPath();ctx.moveTo(0,fz2y(2));ctx.lineTo(W,fz2y(2));ctx.stroke();ctx.setLineDash([]);
+  for(let i=0;i<vacHistWr;i++){
+    const fz=vacFzHist[i];const contact=vacContactHist[i];const slip=vacSlipHist[i];
+    const ty=fz2y(fz);const bh=FZ_H-1-ty;const px=slot2x(i);const pw=Math.max(slot2x(i+1)-px,1);
     if(bh>0){
       ctx.fillStyle=slip>0.05?'rgba(245,166,35,0.28)':contact?'rgba(74,222,128,0.20)':'rgba(58,168,240,0.16)';
-      ctx.fillRect(px,ty+1,2,bh-1);
+      ctx.fillRect(px,ty+1,pw,bh-1);
       ctx.fillStyle=slip>0.05?'#f5a623':contact?'#4ade80':'#3aa8f0';
-      ctx.fillRect(px,ty,2,1);
+      ctx.fillRect(px,ty,pw,1);
     }
   }
-  // Fz label left + value right
-  ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillRect(0,1,72,15);ctx.fillRect(W-120,1,120,15);
+  ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillRect(0,1,72,15);ctx.fillRect(W-150,1,150,15);
   const fzCol=_ftContact?(_ftSlip>0.05?'#f5a623':'#4ade80'):'#3a5a78';
   ctx.fillStyle=fzCol;ctx.font='11px monospace';ctx.textAlign='left';ctx.fillText('F·T Fz',3,14);
-  const stStr=state===S.TRANSIT?'transit':state===S.LIFT?'lift':(state===S.PICK||state===S.VAC_CONFIRM)?'hold':(state===S.DESCEND||state===S.WRIST_VERIFY)?'approach':'—';
+  const stStr=tlFrozen?'cycle complete':state===S.TRANSIT?'transit':state===S.LIFT?'lift':(state===S.PICK||state===S.VAC_CONFIRM)?'hold':(state===S.DESCEND||state===S.WRIST_VERIFY)?'approach':'—';
   ctx.textAlign='right';ctx.fillText(`${_ftFz.toFixed(1)}N · ${stStr}`,W-3,14);
   // ── divider ──────────────────────────────────────────────────────────────
   ctx.fillStyle='rgba(30,60,90,0.3)';ctx.fillRect(0,FZ_H,W,1);
   // ── Reproj error trace ───────────────────────────────────────────────────
   const er2y=e=>ERR_Y+ERR_H-1-Math.round(clamp(e/ERR_MAX,0,1)*(ERR_H-4));
-  // 0.5px warn threshold
   ctx.strokeStyle='rgba(248,113,113,0.25)';ctx.lineWidth=1;ctx.setLineDash([2,4]);
   ctx.beginPath();ctx.moveTo(0,er2y(0.5));ctx.lineTo(W,er2y(0.5));ctx.stroke();ctx.setLineDash([]);
-  for(let i=0;i<320;i++){
-    const idx=(vacHistWr-320+i+VAC_H_LEN)%VAC_H_LEN;
-    const e=reprErrHist[idx];const isFault=e>0.5;
-    const ty=er2y(e);const bh=ERR_Y+ERR_H-1-ty;const px=i*2;
+  for(let i=0;i<vacHistWr;i++){
+    const e=reprErrHist[i];const isFault=e>0.5;
+    const ty=er2y(e);const bh=ERR_Y+ERR_H-1-ty;const px=slot2x(i);const pw=Math.max(slot2x(i+1)-px,1);
     if(bh>0){
       ctx.fillStyle=isFault?'rgba(248,113,113,0.30)':'rgba(58,168,240,0.20)';
-      ctx.fillRect(px,ty+1,2,bh-1);
+      ctx.fillRect(px,ty+1,pw,bh-1);
       ctx.fillStyle=isFault?'#f87171':'#3aa8f0';
-      ctx.fillRect(px,ty,2,1);
+      ctx.fillRect(px,ty,pw,1);
     }
   }
   ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillRect(0,ERR_Y+1,88,15);ctx.fillRect(W-110,ERR_Y+1,110,15);
@@ -1502,8 +1503,8 @@ function drawTimelineOverlay(fault){
   // ── State band ───────────────────────────────────────────────────────────
   let prevSt2=-1;
   const lblMap2={[S.SCAN]:'SCAN',[S.APPROACH]:'APPROACH',[S.DESCEND]:'DESCEND',[S.WRIST_VERIFY]:'VERIFY',[S.PICK]:'PICK',[S.VAC_CONFIRM]:'VAC',[S.LIFT]:'LIFT',[S.TRANSIT]:'TRANSIT',[S.PDOWN]:'PLACE',[S.RELEASE]:'RELEASE',[S.RETURN]:'RETURN'};
-  for(let i=0;i<320;i++){
-    const idx=(vacHistWr-320+i+VAC_H_LEN)%VAC_H_LEN;const s=vacStateHist[idx];
+  for(let i=0;i<vacHistWr;i++){
+    const s=vacStateHist[i];const px=slot2x(i);const pw=Math.max(slot2x(i+1)-px,1);
     let sc='#060c14';
     if(s===S.SCAN||s===S.APPROACH)sc='#0e1828';
     else if(s===S.DESCEND||s===S.WRIST_VERIFY)sc='#0e2038';
@@ -1512,8 +1513,8 @@ function drawTimelineOverlay(fault){
     else if(s===S.PDOWN)sc='#1a2a0a';
     else if(s===S.RELEASE)sc='#2a2000';
     else if(s===S.RETURN)sc='#0e1828';
-    ctx.fillStyle=sc;ctx.fillRect(i*2,ST_Y,2,ST_H);
-    if(s!==prevSt2&&lblMap2[s]&&i*2+60<W){ctx.fillStyle='#4a7090';ctx.font='9px monospace';ctx.textAlign='left';ctx.fillText(lblMap2[s],i*2+2,ST_Y+ST_H-2);}
+    ctx.fillStyle=sc;ctx.fillRect(px,ST_Y,pw,ST_H);
+    if(s!==prevSt2&&lblMap2[s]&&px+60<W){ctx.fillStyle='#4a7090';ctx.font='9px monospace';ctx.textAlign='left';ctx.fillText(lblMap2[s],px+2,ST_Y+ST_H-2);}
     prevSt2=s;
   }
   ctx.textAlign='left';
@@ -1627,7 +1628,7 @@ function animate(ts){
       if(state===S.PDOWN){const f=clamp(stateT/1.5,0,1);setTarget(WPPS.x,lerp(WPQ.y,WPPS.y,eio(f)),WPPS.z);updateActualPath();for(let i=0;i<13;i++)setWpDone(i);setWpActive(13);if(cupNear(WPPS,0.12)||stateT>4){state=S.RELEASE;stateT=0;setLbl('[15/16] Release');}}
       if(state===S.RELEASE){for(let i=0;i<14;i++)setWpDone(i);setWpActive(14);if(stateT>0.3&&held){held=false;succs++;cp.position.set(PLACE.x,PLAT_TOP+cp.userData.hh,PLACE.z);cp.userData.onPlat=false;const ct=Math.round(performance.now()-cycleStartTime-totalPausedMs);document.getElementById('sc').textContent=ct;log(`Placed - cycle: ${ct}ms`,'ok');updStats();}if(stateT>0.8){state=S.RETURN;stateT=0;goHome();setLbl('[16/16] Return home');}}
       if(state===S.RETURN){for(let i=0;i<15;i++)setWpDone(i);setWpActive(15);updateActualPath();if(stateT>2.5){state=S.DONE;stateT=0;}}
-      if(state===S.DONE){log('Arm at home - cycle complete','dim');state=S.IDLE;setLbl('Idle -- ready');document.getElementById('pfill').style.width='0%';document.getElementById('btnr').disabled=false;document.getElementById('st0').className='st';document.getElementById('st1').className='st good';document.getElementById('btnpause').style.display='none';document.getElementById('btnstop').style.display='none';document.getElementById('btnpause').className='';paused=false;cp=null;held=false;cycleStartTime=0;totalPausedMs=0;for(let i=0;i<16;i++)setWpDone(i);log('Adaptive IR: analysing void mask...','dim');setTimeout(()=>buildAdaptiveIR(),200);setTimeout(()=>{clearPath();resetWpStrip();},3000);}
+      if(state===S.DONE){log('Arm at home - cycle complete','dim');tlFrozen=true;state=S.IDLE;setLbl('Idle -- ready');document.getElementById('pfill').style.width='0%';document.getElementById('btnr').disabled=false;document.getElementById('st0').className='st';document.getElementById('st1').className='st good';document.getElementById('btnpause').style.display='none';document.getElementById('btnstop').style.display='none';document.getElementById('btnpause').className='';paused=false;cp=null;held=false;cycleStartTime=0;totalPausedMs=0;for(let i=0;i<16;i++)setWpDone(i);log('Adaptive IR: analysing void mask...','dim');setTimeout(()=>buildAdaptiveIR(),200);setTimeout(()=>{clearPath();resetWpStrip();},3000);}
       const ord=[S.SCAN,S.APPROACH,S.DESCEND,S.WRIST_VERIFY,S.PICK,S.VAC_CONFIRM,S.LIFT,S.TRANSIT,S.PDOWN,S.RELEASE,S.RETURN,S.DONE];const idx=ord.indexOf(state);if(idx>=0)document.getElementById('pfill').style.width=clamp(idx/ord.length*100,0,100).toFixed(0)+'%';
     }
   }
@@ -1635,7 +1636,18 @@ function animate(ts){
   updateVisionPanels(dt,calibFaultActive);
   updateWristDot();
   // Push vacuum / F·T timeline sample at 30 Hz
-  vacSampleTimer+=dt;if(vacSampleTimer>=VAC_SAMPLE_RATE){vacSampleTimer-=VAC_SAMPLE_RATE;vacFzHist[vacHistWr]=_ftFz;vacContactHist[vacHistWr]=_ftContact?1:0;vacSlipHist[vacHistWr]=_ftSlip;vacStateHist[vacHistWr]=state;reprErrHist[vacHistWr]=reprErr;vacHistWr=(vacHistWr+1)%VAC_H_LEN;}
+  if(!tlFrozen&&state!==S.IDLE){
+    // Dynamic rate: estimate cycle duration from typical 8s max, fit 320 slots
+    const cycleElapsed=(performance.now()-cycleStartTime-totalPausedMs)/1000;
+    const dynRate=Math.max(cycleElapsed/VAC_H_LEN,1/60);
+    vacSampleTimer+=dt;
+    if(vacSampleTimer>=dynRate&&vacHistWr<VAC_H_LEN){
+      vacSampleTimer-=dynRate;
+      vacFzHist[vacHistWr]=_ftFz;vacContactHist[vacHistWr]=_ftContact?1:0;
+      vacSlipHist[vacHistWr]=_ftSlip;vacStateHist[vacHistWr]=state;
+      reprErrHist[vacHistWr]=reprErr;vacHistWr++;
+    }
+  }
   // Simulate F/T sensor readings based on cycle state
   const _ftSpd=clamp(dt*12,0,1);
   if(state===S.DESCEND||state===S.WRIST_VERIFY){_ftFzTarget=0;_ftContact=false;_ftSlip=0;
