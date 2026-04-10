@@ -133,6 +133,7 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
 #root.fs-l .hiw-card{font-size:14px;} #root.fs-l .hiw-steps{font-size:12px;} #root.fs-l .rvf-li{font-size:14px;} #root.fs-l .nn-meta{font-size:14px;}
 /* how-it-works glossary */
 .hiw-card{font-size:10px;line-height:1.6;}
+#hiw-section.hiw-texts-hidden .hiw-card:not([style*="grid-column"]){display:none;}
 .hiw-term{color:#7dc8ff;font-weight:600;}
 .hiw-def{color:#7aaac8;}
 .hiw-steps{font-size:9px;color:#60aae8;background:#060c14;border:.5px solid #1a3a5a;border-radius:3px;display:inline-block;padding:1px 6px;margin-bottom:3px;letter-spacing:.04em;text-transform:uppercase;}
@@ -309,8 +310,11 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
   </div>
 
   <!-- How It Works glossary -->
-  <div style="margin-top:6px;background:#080e18;border:.5px solid #1a2e44;border-radius:4px;padding:10px 12px;">
-    <div class="lbl2" style="margin-bottom:10px;">How it works — key concepts</div>
+  <div id="hiw-section" style="margin-top:6px;background:#080e18;border:.5px solid #1a2e44;border-radius:4px;padding:10px 12px;">
+    <div class="lbl2" style="margin-bottom:10px;display:flex;align-items:center;gap:10px;">
+      <span>How it works — key concepts</span>
+      <button class="wn" style="font-size:9px;padding:2px 8px;" onclick="(function(){var s=document.getElementById('hiw-section');var on=s.classList.toggle('hiw-texts-hidden');this.textContent=on?'show detail':'hide detail';}).call(this)">hide detail</button>
+    </div>
 
     <!-- Group 1: Overhead Vision -->
     <div style="margin-bottom:6px;padding:6px 8px;background:#060c18;border-left:2px solid #3aa8f0;border-top:.5px solid #1a2e44;border-radius:2px;">
