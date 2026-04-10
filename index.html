@@ -231,7 +231,7 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
   <div id="main-area">
     <div id="vp-wrap">
       <div id="cw"><canvas id="c"></canvas>
-        <canvas id="overlay-tl" width="640" height="64" style="position:absolute;bottom:0;right:0;width:42%;height:auto;pointer-events:none;display:block;border-radius:4px 0 0 0;"></canvas>
+        <canvas id="overlay-tl" width="640" height="100" style="position:absolute;bottom:0;right:0;width:42%;height:auto;pointer-events:none;display:block;border-radius:4px 0 0 0;"></canvas>
         <div id="ov">
           <div class="badge ph" id="plbl">Idle -- ready</div><br>
           <div class="badge ok" id="dlbl">Calibration: OK</div>
@@ -1448,7 +1448,7 @@ function drawEpipolar(fault){
 }
 
 function drawTimelineOverlay(fault){
-  const W=640,H=64,FZ_H=26,ERR_H=26,ST_H=10,ERR_Y=FZ_H+1,ST_Y=FZ_H+ERR_H+2;
+  const W=640,H=100,FZ_H=40,ERR_H=40,ST_H=14,ERR_Y=FZ_H+1,ST_Y=FZ_H+ERR_H+2;
   const FZ_MAX=4.0,ERR_MAX=3.0;
   const ctx=overlayTlCtx;
   ctx.clearRect(0,0,W,H);
@@ -1470,11 +1470,11 @@ function drawTimelineOverlay(fault){
     }
   }
   // Fz label left + value right
-  ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillRect(0,1,60,12);ctx.fillRect(W-100,1,100,12);
+  ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillRect(0,1,72,15);ctx.fillRect(W-120,1,120,15);
   const fzCol=_ftContact?(_ftSlip>0.05?'#f5a623':'#4ade80'):'#3a5a78';
-  ctx.fillStyle=fzCol;ctx.font='9px monospace';ctx.textAlign='left';ctx.fillText('F·T Fz',3,11);
+  ctx.fillStyle=fzCol;ctx.font='11px monospace';ctx.textAlign='left';ctx.fillText('F·T Fz',3,14);
   const stStr=state===S.TRANSIT?'transit':state===S.LIFT?'lift':(state===S.PICK||state===S.VAC_CONFIRM)?'hold':(state===S.DESCEND||state===S.WRIST_VERIFY)?'approach':'—';
-  ctx.textAlign='right';ctx.fillText(`${_ftFz.toFixed(1)}N · ${stStr}`,W-3,11);
+  ctx.textAlign='right';ctx.fillText(`${_ftFz.toFixed(1)}N · ${stStr}`,W-3,14);
   // ── divider ──────────────────────────────────────────────────────────────
   ctx.fillStyle='rgba(30,60,90,0.3)';ctx.fillRect(0,FZ_H,W,1);
   // ── Reproj error trace ───────────────────────────────────────────────────
@@ -1493,10 +1493,10 @@ function drawTimelineOverlay(fault){
       ctx.fillRect(px,ty,2,1);
     }
   }
-  ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillRect(0,ERR_Y+1,72,12);ctx.fillRect(W-90,ERR_Y+1,90,12);
+  ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillRect(0,ERR_Y+1,88,15);ctx.fillRect(W-110,ERR_Y+1,110,15);
   const errCol=reprErr>0.5?'#f87171':'#3aa8f0';
-  ctx.fillStyle=errCol;ctx.textAlign='left';ctx.fillText('Reproj err',3,ERR_Y+11);
-  ctx.textAlign='right';ctx.fillText(`${reprErr.toFixed(2)}px ${reprErr>0.5?'⚠':'✓'}`,W-3,ERR_Y+11);
+  ctx.fillStyle=errCol;ctx.font='11px monospace';ctx.textAlign='left';ctx.fillText('Reproj err',3,ERR_Y+14);
+  ctx.textAlign='right';ctx.fillText(`${reprErr.toFixed(2)}px ${reprErr>0.5?'⚠':'✓'}`,W-3,ERR_Y+14);
   // ── divider ──────────────────────────────────────────────────────────────
   ctx.fillStyle='rgba(30,60,90,0.3)';ctx.fillRect(0,ST_Y-1,W,1);
   // ── State band ───────────────────────────────────────────────────────────
@@ -1513,7 +1513,7 @@ function drawTimelineOverlay(fault){
     else if(s===S.RELEASE)sc='#2a2000';
     else if(s===S.RETURN)sc='#0e1828';
     ctx.fillStyle=sc;ctx.fillRect(i*2,ST_Y,2,ST_H);
-    if(s!==prevSt2&&lblMap2[s]&&i*2+60<W){ctx.fillStyle='#4a7090';ctx.font='7px monospace';ctx.textAlign='left';ctx.fillText(lblMap2[s],i*2+2,ST_Y+ST_H-2);}
+    if(s!==prevSt2&&lblMap2[s]&&i*2+60<W){ctx.fillStyle='#4a7090';ctx.font='9px monospace';ctx.textAlign='left';ctx.fillText(lblMap2[s],i*2+2,ST_Y+ST_H-2);}
     prevSt2=s;
   }
   ctx.textAlign='left';
