@@ -343,21 +343,20 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
           <line x1="54" y1="18" x2="54" y2="26" stroke="#3aa8f0" stroke-width="1"/>
           <line x1="206" y1="18" x2="206" y2="26" stroke="#3aa8f0" stroke-width="1"/>
           <text x="130" y="18" fill="#3aa8f0" font-size="8" text-anchor="middle" font-family="monospace">B = 1.0m</text>
-          <!-- Left sight lines -->
-          <line x1="32" y1="44" x2="110" y2="146" stroke="#3aa8f0" stroke-width=".8" opacity=".4"/>
-          <line x1="32" y1="44" x2="150" y2="146" stroke="#3aa8f0" stroke-width=".8" opacity=".4"/>
-          <!-- Right sight lines -->
-          <line x1="228" y1="44" x2="110" y2="146" stroke="#60c8ff" stroke-width=".8" opacity=".4"/>
-          <line x1="228" y1="44" x2="150" y2="146" stroke="#60c8ff" stroke-width=".8" opacity=".4"/>
+          <!-- Animated sight lines (single ray per camera to probe) -->
+          <line id="ster-sl" x1="32" y1="44" x2="130" y2="148" stroke="#3aa8f0" stroke-width="1" opacity="0.6"/>
+          <line id="ster-sr" x1="228" y1="44" x2="130" y2="148" stroke="#60c8ff" stroke-width="1" opacity="0.6"/>
           <!-- Depth arrow -->
           <line x1="168" y1="80" x2="168" y2="142" stroke="#4ade80" stroke-width="1.2" stroke-dasharray="4,3"/>
           <polygon points="168,146 163,136 173,136" fill="#4ade80"/>
-          <text x="175" y="118" fill="#4ade80" font-size="8" font-family="monospace">Z=f·B/d</text>
-          <!-- Disparity bracket -->
-          <line x1="110" y1="130" x2="150" y2="130" stroke="#f5a623" stroke-width="1.2"/>
-          <line x1="110" y1="126" x2="110" y2="134" stroke="#f5a623" stroke-width="1.2"/>
-          <line x1="150" y1="126" x2="150" y2="134" stroke="#f5a623" stroke-width="1.2"/>
-          <text x="130" y="126" fill="#f5a623" font-size="7.5" text-anchor="middle" font-family="monospace">d px</text>
+          <text id="ster-zlbl" x="175" y="118" fill="#4ade80" font-size="8" font-family="monospace">Z=f·B/d</text>
+          <!-- Disparity bracket (animated) -->
+          <line id="ster-bh" x1="110" y1="130" x2="150" y2="130" stroke="#f5a623" stroke-width="1.2"/>
+          <line id="ster-btl" x1="110" y1="126" x2="110" y2="134" stroke="#f5a623" stroke-width="1.2"/>
+          <line id="ster-btr" x1="150" y1="126" x2="150" y2="134" stroke="#f5a623" stroke-width="1.2"/>
+          <text id="ster-dlbl" x="130" y="126" fill="#f5a623" font-size="7.5" text-anchor="middle" font-family="monospace">d px</text>
+          <!-- Probe dot -->
+          <circle id="ster-probe" cx="130" cy="148" r="3.5" fill="#fb923c"/>
           <!-- IR dots -->
           <circle cx="55" cy="170" r="2.5" fill="#00ffaa" opacity=".7"/>
           <circle cx="72" cy="167" r="2.5" fill="#00ffaa" opacity=".6"/>
@@ -366,6 +365,30 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
           <circle cx="192" cy="171" r="2.5" fill="#00ffaa" opacity=".6"/>
           <text x="130" y="192" fill="#00ffaa" font-size="7" text-anchor="middle" font-family="monospace">IR dots</text>
         </svg>
+        <script>
+(function(){
+  var sl=document.getElementById('ster-sl'),sr=document.getElementById('ster-sr');
+  var bh=document.getElementById('ster-bh'),btl=document.getElementById('ster-btl'),btr=document.getElementById('ster-btr');
+  var dlbl=document.getElementById('ster-dlbl'),zlbl=document.getElementById('ster-zlbl'),probe=document.getElementById('ster-probe');
+  var t=0,lt=null;
+  function frame(ts){
+    if(!lt)lt=ts;t+=(ts-lt)*0.001;lt=ts;
+    var px=130+17*Math.sin(t*0.7);
+    var d=36+8*Math.sin(t*0.7+1.1);
+    probe.setAttribute('cx',px.toFixed(1));
+    sl.setAttribute('x2',px.toFixed(1));sr.setAttribute('x2',px.toFixed(1));
+    var hd=d*0.45;
+    bh.setAttribute('x1',(px-hd).toFixed(1));bh.setAttribute('x2',(px+hd).toFixed(1));
+    btl.setAttribute('x1',(px-hd).toFixed(1));btl.setAttribute('x2',(px-hd).toFixed(1));
+    btr.setAttribute('x1',(px+hd).toFixed(1));btr.setAttribute('x2',(px+hd).toFixed(1));
+    dlbl.setAttribute('x',px.toFixed(0));
+    dlbl.textContent='d\u2009=\u2009'+d.toFixed(0)+'px';
+    zlbl.textContent='Z='+(320/d).toFixed(1)+'m';
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+        </script>
       </div>
       <div class="hiw-card">
         <div class="hiw-steps">steps 1–3</div>
@@ -574,36 +597,55 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
           <rect x="40" y="174" width="180" height="12" rx="3" fill="#0a1824" stroke="#1a3a5a" stroke-width="1"/>
           <!-- Part -->
           <ellipse cx="130" cy="174" rx="26" ry="7" fill="#0d2236" stroke="#4ade80" stroke-width="1"/>
-          <!-- Arm stem -->
-          <line x1="130" y1="10" x2="130" y2="90" stroke="#4ade80" stroke-width="3" stroke-linecap="round"/>
-          <!-- F/T sensor -->
-          <rect x="114" y="82" width="32" height="14" rx="3" fill="#1a0e04" stroke="#f5a623" stroke-width="1.5"/>
-          <text x="130" y="92" fill="#f5a623" font-size="7.5" text-anchor="middle" font-family="monospace">F/T</text>
-          <!-- Suction cup -->
-          <path d="M 110 96 Q 100 112 106 120 L 154 120 Q 160 112 150 96 Z" fill="#0d1e2e" stroke="#4ade80" stroke-width="1.2"/>
-          <ellipse cx="130" cy="120" rx="24" ry="6" fill="#060c18" stroke="#4ade80" stroke-width="1.2"/>
-          <!-- Wrist cam -->
-          <rect x="156" y="92" width="22" height="14" rx="2" fill="#0d1e2e" stroke="#3aa8f0" stroke-width="1.2"/>
-          <circle cx="167" cy="99" r="4" fill="#060c18" stroke="#3aa8f0" stroke-width="1"/>
-          <circle cx="175" cy="93" r="2.5" fill="#00ffaa"/>
-          <!-- FOV lines -->
-          <line x1="157" y1="106" x2="112" y2="174" stroke="#3aa8f0" stroke-width=".8" opacity=".4" stroke-dasharray="3,2"/>
-          <line x1="178" y1="106" x2="150" y2="174" stroke="#3aa8f0" stroke-width=".8" opacity=".4" stroke-dasharray="3,2"/>
-          <!-- Rim fit -->
-          <ellipse cx="130" cy="174" rx="18" ry="4" fill="none" stroke="#00ffaa" stroke-width="1.2" stroke-dasharray="3,2"/>
+          <!-- Animated arm group -->
+          <g id="exec-arm" transform="translate(0,0)">
+            <line x1="130" y1="10" x2="130" y2="90" stroke="#4ade80" stroke-width="3" stroke-linecap="round"/>
+            <rect x="114" y="82" width="32" height="14" rx="3" fill="#1a0e04" stroke="#f5a623" stroke-width="1.5"/>
+            <text x="130" y="92" fill="#f5a623" font-size="7.5" text-anchor="middle" font-family="monospace">F/T</text>
+            <path d="M 110 96 Q 100 112 106 120 L 154 120 Q 160 112 150 96 Z" fill="#0d1e2e" stroke="#4ade80" stroke-width="1.2"/>
+            <ellipse cx="130" cy="120" rx="24" ry="6" fill="#060c18" stroke="#4ade80" stroke-width="1.2"/>
+            <rect x="156" y="92" width="22" height="14" rx="2" fill="#0d1e2e" stroke="#3aa8f0" stroke-width="1.2"/>
+            <circle cx="167" cy="99" r="4" fill="#060c18" stroke="#3aa8f0" stroke-width="1"/>
+            <circle cx="175" cy="93" r="2.5" fill="#00ffaa"/>
+          </g>
+          <!-- Rim fit (stays on part) -->
+          <ellipse id="exec-rim" cx="130" cy="174" rx="18" ry="4" fill="none" stroke="#00ffaa" stroke-width="1.2" stroke-dasharray="3,2" opacity="0.35"/>
           <!-- Centroid + offset -->
           <circle cx="136" cy="174" r="3" fill="#fb923c"/>
           <line x1="130" y1="174" x2="136" y2="174" stroke="#fb923c" stroke-width="1.5"/>
-          <!-- Labels -->
-          <text x="65" y="100" fill="#4ade80" font-size="7.5" font-family="monospace">descend</text>
-          <text x="167" y="82" fill="#3aa8f0" font-size="7" text-anchor="middle" font-family="monospace">wrist cam</text>
+          <!-- State label + static labels -->
+          <text id="exec-state" x="252" y="13" fill="#4ade80" font-size="8.5" text-anchor="end" font-family="monospace" font-weight="bold">ready</text>
           <text x="130" y="168" fill="#00ffaa" font-size="6.5" text-anchor="middle" font-family="monospace">rim fit</text>
           <text x="145" y="166" fill="#fb923c" font-size="6.5" font-family="monospace">Δ</text>
           <!-- F/T bar -->
           <rect x="44" y="140" width="60" height="8" rx="2" fill="#0a1520" stroke="#1a3a5a" stroke-width=".8"/>
-          <rect x="44" y="140" width="44" height="8" rx="2" fill="#4ade80" opacity=".7"/>
+          <rect id="exec-ft" x="44" y="140" width="0" height="8" rx="2" fill="#4ade80" opacity=".7"/>
           <text x="74" y="136" fill="#4ade80" font-size="6.5" text-anchor="middle" font-family="monospace">Fz contact</text>
         </svg>
+        <script>
+(function(){
+  var arm=document.getElementById('exec-arm');
+  var ft=document.getElementById('exec-ft');
+  var rim=document.getElementById('exec-rim');
+  var st=document.getElementById('exec-state');
+  var t=0,lt=null,CYC=3500;
+  function ease(x){return x<.5?2*x*x:1-Math.pow(-2*x+2,2)/2;}
+  function frame(ts){
+    if(!lt)lt=ts;t+=ts-lt;lt=ts;
+    var ph=(t%CYC)/CYC,off,ftw,rop,lbl,col;
+    if(ph<0.35){off=ease(ph/0.35)*42;ftw=0;rop=0.35;lbl='descend';col='#fb923c';}
+    else if(ph<0.55){off=42;ftw=44*(ph-0.35)/0.2;rop=0.5+0.5*Math.abs(Math.sin(ts/180));lbl='contact \u2713';col='#4ade80';}
+    else if(ph<0.8){off=ease(1-(ph-0.55)/0.25)*42;ftw=Math.max(0,44*(1-(ph-0.55)/0.1));rop=0.35;lbl='lift';col='#7dc8ff';}
+    else{off=0;ftw=0;rop=0.35;lbl='ready';col='#4ade80';}
+    arm.setAttribute('transform','translate(0,'+off.toFixed(1)+')');
+    ft.setAttribute('width',ftw.toFixed(1));
+    rim.setAttribute('opacity',rop.toFixed(2));
+    st.textContent=lbl;st.setAttribute('fill',col);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+        </script>
       </div>
       <div class="hiw-card">
         <div class="hiw-steps">steps 8–9 · wrist cam</div>
@@ -660,19 +702,20 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
           <line x1="60" y1="20" x2="60" y2="180" stroke="#1a2e44" stroke-width=".8"/>
           <line x1="100" y1="20" x2="100" y2="180" stroke="#1a2e44" stroke-width=".8"/>
           <line x1="140" y1="20" x2="140" y2="180" stroke="#1a2e44" stroke-width=".8"/>
-          <!-- Good example: crosshair + close point -->
-          <line x1="90" y1="50" x2="110" y2="50" stroke="#f5a623" stroke-width="1.2"/>
-          <line x1="100" y1="40" x2="100" y2="60" stroke="#f5a623" stroke-width="1.2"/>
-          <circle cx="100" cy="50" r="7" fill="none" stroke="#4ade80" stroke-width="1.2"/>
+          <!-- Good example: dot=actual (fixed), crosshair=expected (animated) -->
+          <line id="cal-ghx" x1="90" y1="50" x2="110" y2="50" stroke="#f5a623" stroke-width="1.2"/>
+          <line id="cal-ghy" x1="100" y1="40" x2="100" y2="60" stroke="#f5a623" stroke-width="1.2"/>
+          <circle id="cal-gcirc" cx="100" cy="50" r="7" fill="none" stroke="#4ade80" stroke-width="1.2"/>
+          <line id="cal-gl" x1="100" y1="50" x2="102" y2="49" stroke="#4ade80" stroke-width="1" opacity="0.6"/>
           <circle cx="102" cy="49" r="3.5" fill="#4ade80" opacity=".9"/>
-          <text x="112" y="46" fill="#4ade80" font-size="8" font-family="monospace">0.24px ✓</text>
-          <!-- Fault example: crosshair + far point -->
-          <line x1="90" y1="110" x2="110" y2="110" stroke="#f5a623" stroke-width="1.2"/>
-          <line x1="100" y1="100" x2="100" y2="120" stroke="#f5a623" stroke-width="1.2"/>
-          <circle cx="100" cy="110" r="7" fill="none" stroke="#f87171" stroke-width="1.2"/>
+          <text id="cal-gerr" x="112" y="46" fill="#4ade80" font-size="8" font-family="monospace">0.24px ✓</text>
+          <!-- Bad example: dot=actual (fixed), crosshair=expected (animated) -->
+          <line id="cal-bhx" x1="90" y1="110" x2="110" y2="110" stroke="#f5a623" stroke-width="1.2"/>
+          <line id="cal-bhy" x1="100" y1="100" x2="100" y2="120" stroke="#f5a623" stroke-width="1.2"/>
+          <circle id="cal-bcirc" cx="100" cy="110" r="7" fill="none" stroke="#f87171" stroke-width="1.2"/>
+          <line id="cal-bl" x1="100" y1="110" x2="114" y2="102" stroke="#f5a623" stroke-width="1.2"/>
           <circle cx="114" cy="102" r="3.5" fill="#f87171" opacity=".9"/>
-          <line x1="100" y1="110" x2="114" y2="102" stroke="#f5a623" stroke-width="1.2"/>
-          <text x="118" y="100" fill="#f87171" font-size="8" font-family="monospace">2.3px ✗</text>
+          <text id="cal-berr" x="118" y="100" fill="#f87171" font-size="8" font-family="monospace">2.3px ✗</text>
           <!-- Labels -->
           <text x="100" y="15" fill="#5a8aaa" font-size="7.5" text-anchor="middle" font-family="monospace">calibration grid</text>
           <!-- Legend -->
@@ -683,6 +726,41 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
           <text x="195" y="130" fill="#f87171" font-size="7.5" font-family="monospace">&gt;0.5px</text>
           <text x="195" y="142" fill="#f87171" font-size="7.5" font-family="monospace">= fault</text>
         </svg>
+        <script>
+(function(){
+  // crosshair = expected (model projection), dot = actual (detected, fixed)
+  var ghx=document.getElementById('cal-ghx'),ghy=document.getElementById('cal-ghy');
+  var gcirc=document.getElementById('cal-gcirc'),gl=document.getElementById('cal-gl'),gerr=document.getElementById('cal-gerr');
+  var bhx=document.getElementById('cal-bhx'),bhy=document.getElementById('cal-bhy');
+  var bcirc=document.getElementById('cal-bcirc'),bl=document.getElementById('cal-bl'),berr=document.getElementById('cal-berr');
+  var t=0,lt=null,SC=0.107,R=10;
+  function setCH(hx,hy,cx,cy,x,y){
+    hx.setAttribute('x1',x-R);hx.setAttribute('x2',x+R);hx.setAttribute('y1',y);hx.setAttribute('y2',y);
+    hy.setAttribute('x1',x);hy.setAttribute('x2',x);hy.setAttribute('y1',y-R);hy.setAttribute('y2',y+R);
+    cx.setAttribute('cx',x);cx.setAttribute('cy',y);
+  }
+  function frame(ts){
+    if(!lt)lt=ts;t+=(ts-lt)*0.001;lt=ts;
+    // Good: expected (crosshair) barely drifts from actual dot at (102,49)
+    var gx=102+2*Math.sin(t*3.1),gy=49+1.5*Math.cos(t*4.3);
+    setCH(ghx,ghy,gcirc,null,gx,gy);
+    gl.setAttribute('x1',gx.toFixed(1));gl.setAttribute('y1',gy.toFixed(1));
+    var gd2=Math.sqrt((gx-102)*(gx-102)+(gy-49)*(gy-49));
+    gerr.textContent=(gd2*SC).toFixed(2)+'px \u2713';
+    // Bad: expected (crosshair) drifts away from actual dot at (114,102)
+    var bamp=8+7*Math.sin(t*0.28);
+    var bx=114+bamp*Math.sin(t*1.1),by=102+bamp*0.7*Math.cos(t*0.9);
+    setCH(bhx,bhy,bcirc,null,bx,by);
+    bl.setAttribute('x1',bx.toFixed(1));bl.setAttribute('y1',by.toFixed(1));
+    var bd2=Math.sqrt((bx-114)*(bx-114)+(by-102)*(by-102));
+    var bpx=bd2*SC,fault=bpx>0.5,bcol=fault?'#f87171':'#4ade80';
+    bcirc.setAttribute('stroke',bcol);berr.setAttribute('fill',bcol);
+    berr.textContent=bpx.toFixed(2)+'px '+(fault?'\u2717':'\u2713');
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+        </script>
       </div>
       <div class="hiw-card">
         <div class="hiw-steps">calibration</div>
