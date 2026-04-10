@@ -141,6 +141,10 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
 #root.fs-s .hiw-group-sub{font-size:8px;}
 #root.fs-m .hiw-group-sub{font-size:11px;}
 #root.fs-l .hiw-group-sub{font-size:13px;}
+.hiw-group-tags{font-size:9px;color:#3a5a78;}
+#root.fs-s .hiw-group-tags{font-size:8px;}
+#root.fs-m .hiw-group-tags{font-size:11px;}
+#root.fs-l .hiw-group-tags{font-size:13px;}
 /* real vs simulated panel */
 .rvf-hdr{font-size:10px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;}
 .rvf-li{font-size:10px;}
@@ -227,7 +231,7 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
   <div id="main-area">
     <div id="vp-wrap">
       <div id="cw"><canvas id="c"></canvas>
-        <canvas id="overlay-tl" width="640" height="64" style="position:absolute;bottom:0;left:0;width:100%;height:64px;pointer-events:none;display:block;"></canvas>
+        <canvas id="overlay-tl" width="640" height="64" style="position:absolute;bottom:0;right:0;width:42%;height:auto;pointer-events:none;display:block;border-radius:4px 0 0 0;"></canvas>
         <div id="ov">
           <div class="badge ph" id="plbl">Idle -- ready</div><br>
           <div class="badge ok" id="dlbl">Calibration: OK</div>
@@ -322,7 +326,7 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
         <div><span style="color:#3aa8f0;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;">Overhead vision</span><span class="hiw-group-sub"> · stereo depth + scene understanding</span></div>
         <div class="hiw-group-sub">steps 1–6 &nbsp;(frame capture, YOLOv8 detect, depth+cloud, pose ICP, grasp lookup, IK solve)</div>
         <div class="hiw-group-sub">runs once per cycle before arm moves</div>
-        <div class="hiw-group-tags" style="margin-top:4px;font-size:9px;color:#3a5a78;"></div>
+        <div class="hiw-group-tags" style="margin-top:4px;"></div>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px 16px;align-items:start;margin-bottom:12px;">
@@ -448,7 +452,7 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
         <div><span style="color:#a78bfa;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;">Planning</span><span class="hiw-group-sub"> · grasp pose and motion waypoints</span></div>
         <div class="hiw-group-sub">steps 5–6 &nbsp;(grasp lookup, IK solve)</div>
         <div class="hiw-group-sub">computed from depth data before arm moves</div>
-        <div class="hiw-group-tags" style="margin-top:4px;font-size:9px;color:#3a5a78;"></div>
+        <div class="hiw-group-tags" style="margin-top:4px;"></div>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px 16px;align-items:start;margin-bottom:12px;">
@@ -594,7 +598,7 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
         <div><span style="color:#4ade80;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;">Execution</span><span class="hiw-group-sub"> · closed-loop arm motion with wrist cam and F/T</span></div>
         <div class="hiw-group-sub">steps 7–16 &nbsp;(arm approach, arm descend, wrist verify, vacuum pick, vacuum confirm, lift, transit, place descend, release, return home)</div>
         <div class="hiw-group-sub">wrist cam and F/T sensor close the loop during motion</div>
-        <div class="hiw-group-tags" style="margin-top:4px;font-size:9px;color:#3a5a78;"></div>
+        <div class="hiw-group-tags" style="margin-top:4px;"></div>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px 16px;align-items:start;margin-bottom:12px;">
@@ -696,7 +700,7 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
       <div style="display:flex;flex-direction:column;gap:2px;">
         <div><span style="color:#f5a623;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;">System</span><span class="hiw-group-sub"> · calibration health</span></div>
         <div class="hiw-group-sub">affects all 16 pipeline steps</div>
-        <div class="hiw-group-tags" style="margin-top:4px;font-size:9px;color:#3a5a78;"></div>
+        <div class="hiw-group-tags" style="margin-top:4px;"></div>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px 16px;align-items:start;">
@@ -1447,8 +1451,8 @@ function drawTimelineOverlay(fault){
   const W=640,H=64,FZ_H=26,ERR_H=26,ST_H=10,ERR_Y=FZ_H+1,ST_Y=FZ_H+ERR_H+2;
   const FZ_MAX=4.0,ERR_MAX=3.0;
   const ctx=overlayTlCtx;
-  ctx.fillStyle='rgba(3,6,8,0.80)';ctx.fillRect(0,0,W,H);
-  ctx.fillStyle='#0e1824';ctx.fillRect(0,0,W,1);
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='rgba(3,6,14,0.58)';ctx.fillRect(0,0,W,H);
   // ── Fz trace ────────────────────────────────────────────────────────────
   const fz2y=fz=>FZ_H-1-Math.round(clamp(Math.abs(fz)/FZ_MAX,0,1)*(FZ_H-4));
   // 2N threshold line
@@ -1472,7 +1476,7 @@ function drawTimelineOverlay(fault){
   const stStr=state===S.TRANSIT?'transit':state===S.LIFT?'lift':(state===S.PICK||state===S.VAC_CONFIRM)?'hold':(state===S.DESCEND||state===S.WRIST_VERIFY)?'approach':'—';
   ctx.textAlign='right';ctx.fillText(`${_ftFz.toFixed(1)}N · ${stStr}`,W-3,11);
   // ── divider ──────────────────────────────────────────────────────────────
-  ctx.fillStyle='#0e1824';ctx.fillRect(0,FZ_H,W,1);
+  ctx.fillStyle='rgba(30,60,90,0.3)';ctx.fillRect(0,FZ_H,W,1);
   // ── Reproj error trace ───────────────────────────────────────────────────
   const er2y=e=>ERR_Y+ERR_H-1-Math.round(clamp(e/ERR_MAX,0,1)*(ERR_H-4));
   // 0.5px warn threshold
@@ -1494,7 +1498,7 @@ function drawTimelineOverlay(fault){
   ctx.fillStyle=errCol;ctx.textAlign='left';ctx.fillText('Reproj err',3,ERR_Y+11);
   ctx.textAlign='right';ctx.fillText(`${reprErr.toFixed(2)}px ${reprErr>0.5?'⚠':'✓'}`,W-3,ERR_Y+11);
   // ── divider ──────────────────────────────────────────────────────────────
-  ctx.fillStyle='#0e1824';ctx.fillRect(0,ST_Y-1,W,1);
+  ctx.fillStyle='rgba(30,60,90,0.3)';ctx.fillRect(0,ST_Y-1,W,1);
   // ── State band ───────────────────────────────────────────────────────────
   let prevSt2=-1;
   const lblMap2={[S.SCAN]:'SCAN',[S.APPROACH]:'APPROACH',[S.DESCEND]:'DESCEND',[S.WRIST_VERIFY]:'VERIFY',[S.PICK]:'PICK',[S.VAC_CONFIRM]:'VAC',[S.LIFT]:'LIFT',[S.TRANSIT]:'TRANSIT',[S.PDOWN]:'PLACE',[S.RELEASE]:'RELEASE',[S.RETURN]:'RETURN'};
