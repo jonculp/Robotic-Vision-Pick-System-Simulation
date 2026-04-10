@@ -313,7 +313,7 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
   <div id="hiw-section" style="margin-top:6px;background:#080e18;border:.5px solid #1a2e44;border-radius:4px;padding:10px 12px;">
     <div class="lbl2" style="margin-bottom:10px;display:flex;align-items:center;gap:10px;">
       <span>How it works — key concepts</span>
-      <button class="wn" style="font-size:9px;padding:2px 8px;" onclick="(function(){var s=document.getElementById('hiw-section');var on=s.classList.toggle('hiw-texts-hidden');this.textContent=on?'show detail':'hide detail';}).call(this)">hide detail</button>
+      <button class="wn" id="hiw-toggle-btn" style="font-size:9px;padding:2px 8px;" onclick="(function(){var s=document.getElementById('hiw-section');var on=s.classList.toggle('hiw-texts-hidden');this.textContent=on?'show detail':'hide detail';}).call(this)">hide detail</button>
     </div>
 
     <!-- Group 1: Overhead Vision -->
@@ -322,6 +322,7 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
         <div><span style="color:#3aa8f0;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;">Overhead vision</span><span class="hiw-group-sub"> · stereo depth + scene understanding</span></div>
         <div class="hiw-group-sub">steps 1–6 &nbsp;(frame capture, YOLOv8 detect, depth+cloud, pose ICP, grasp lookup, IK solve)</div>
         <div class="hiw-group-sub">runs once per cycle before arm moves</div>
+        <div class="hiw-group-tags" style="margin-top:4px;font-size:9px;color:#3a5a78;"></div>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px 16px;align-items:start;margin-bottom:12px;">
@@ -447,6 +448,7 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
         <div><span style="color:#a78bfa;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;">Planning</span><span class="hiw-group-sub"> · grasp pose and motion waypoints</span></div>
         <div class="hiw-group-sub">steps 5–6 &nbsp;(grasp lookup, IK solve)</div>
         <div class="hiw-group-sub">computed from depth data before arm moves</div>
+        <div class="hiw-group-tags" style="margin-top:4px;font-size:9px;color:#3a5a78;"></div>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px 16px;align-items:start;margin-bottom:12px;">
@@ -592,6 +594,7 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
         <div><span style="color:#4ade80;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;">Execution</span><span class="hiw-group-sub"> · closed-loop arm motion with wrist cam and F/T</span></div>
         <div class="hiw-group-sub">steps 7–16 &nbsp;(arm approach, arm descend, wrist verify, vacuum pick, vacuum confirm, lift, transit, place descend, release, return home)</div>
         <div class="hiw-group-sub">wrist cam and F/T sensor close the loop during motion</div>
+        <div class="hiw-group-tags" style="margin-top:4px;font-size:9px;color:#3a5a78;"></div>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px 16px;align-items:start;margin-bottom:12px;">
@@ -693,6 +696,7 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
       <div style="display:flex;flex-direction:column;gap:2px;">
         <div><span style="color:#f5a623;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;">System</span><span class="hiw-group-sub"> · calibration health</span></div>
         <div class="hiw-group-sub">affects all 16 pipeline steps</div>
+        <div class="hiw-group-tags" style="margin-top:4px;font-size:9px;color:#3a5a78;"></div>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px 16px;align-items:start;">
@@ -789,6 +793,20 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
     </div>
 
   </div>
+  <script>
+(function(){
+  document.querySelectorAll('#hiw-section .hiw-group-tags').forEach(function(tagRow){
+    var grid=tagRow.closest('[style*="border-left"]').nextElementSibling;
+    if(!grid)return;
+    var terms=[];
+    grid.querySelectorAll('.hiw-card:not([style*="grid-column"]) .hiw-term').forEach(function(el){
+      terms.push(el.textContent);
+    });
+    if(!terms.length)return;
+    tagRow.textContent='Topics · '+terms.join(' · ');
+  });
+})();
+  </script>
   <div style="height:12px;"></div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
