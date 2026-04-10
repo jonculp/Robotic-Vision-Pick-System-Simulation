@@ -324,7 +324,7 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
     <div style="margin-bottom:6px;padding:6px 8px;background:#060c18;border-left:2px solid #3aa8f0;border-top:.5px solid #1a2e44;border-radius:2px;">
       <div style="display:flex;flex-direction:column;gap:2px;">
         <div><span style="color:#3aa8f0;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;">Overhead vision</span><span class="hiw-group-sub"> · stereo depth + scene understanding</span></div>
-        <div class="hiw-group-sub">steps 1–6 &nbsp;(frame capture, YOLOv8 detect, depth+cloud, pose ICP, grasp lookup, IK solve)</div>
+        <div class="hiw-group-sub">steps 1–7 &nbsp;(frame capture, YOLOv8 detect, IR reseed, depth+cloud, pose ICP, grasp lookup, IK solve)</div>
         <div class="hiw-group-sub">runs once per cycle before arm moves</div>
         <div class="hiw-group-tags" style="margin-top:4px;"></div>
       </div>
@@ -412,7 +412,7 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
       <div class="hiw-card">
         <div class="hiw-steps">epipolar panel</div>
         <span class="hiw-term">Epipolar constraint</span>
-        <span class="hiw-def"> — For a rectified stereo pair (both cameras aligned to the same horizontal baseline and looking in the same direction), any point visible in the left image must appear somewhere on a single horizontal line — the epipolar line — in the right image. Because this system is rectified, all epipolar lines are perfectly horizontal scanlines, which is why the SAD matcher only searches left/right and never up/down. The panel shows the left image probe point (green crosshair) and the corresponding orange epipolar line in the right image. The green dot is where SAD found the actual match; the bracket shows the disparity d. The dashed blue vertical marks where the match would fall if the object were at infinite distance (d = 0). Inject a fault to see the match disappear — depth becomes undefined when SAD confidence drops below threshold.</span>
+        <span class="hiw-def"> — In a rectified stereo pair, any point in the left image must lie on a single horizontal scanline in the right image. This is why SAD only searches left/right. The panel shows the probe point (green crosshair), its epipolar line (orange), and where SAD found the match (green dot + disparity bracket). The dashed blue vertical is the d=0 reference (infinite distance). Inject a fault to see the match fail — depth is undefined when SAD confidence drops below threshold.</span>
       </div>
       <div class="hiw-card">
         <div class="hiw-steps">disparity GT</div>
@@ -436,11 +436,16 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
       </div>
       <div class="hiw-card">
         <div class="hiw-steps">step 3</div>
+        <span class="hiw-term">Detection-informed IR reseed</span>
+        <span class="hiw-def"> — After detection identifies where each part is, a ring of extra IR dots is seeded directly onto each detected part's surface before disparity is computed. This is a within-cycle feedback loop: RGB detection (which needs no depth) runs first and informs structured light placement, giving SAD stereo more texture anchors exactly where depth matters most. Disparity then runs with the improved IR pattern, producing fewer voids on part surfaces. Without this step, textureless parts (flat-top boxes, smooth cylinders) frequently produce zero-disparity regions at the centroid — the worst possible place to lose depth when computing grasp height.</span>
+      </div>
+      <div class="hiw-card">
+        <div class="hiw-steps">step 4</div>
         <span class="hiw-term">Point cloud</span>
         <span class="hiw-def"> — Every pixel that has a valid disparity value is unprojected from 2D image space into 3D world coordinates using Z = f·B/d, then x and y are recovered from the pixel position and focal length. The result is a set of (x, y, z) points in metres — one per valid pixel — that describes the 3D surface geometry of the scene. In this pipeline it feeds two things: (1) it provides the seed 3D position for ICP pose estimation, and (2) the median depth sampled from the cloud at the part centroid refines the arm waypoint heights so the approach and pick positions match the actual measured part height rather than relying on assumed geometry.</span>
       </div>
       <div class="hiw-card">
-        <div class="hiw-steps">step 4</div>
+        <div class="hiw-steps">step 5</div>
         <span class="hiw-term">Pose ICP (Iterative Closest Point)</span>
         <span class="hiw-def"> — Detection gives a 2D bounding box; the point cloud gives an approximate 3D position. Neither gives orientation. ICP takes the point cloud of the detected part and iteratively aligns it against a known 3D template of that part type. At each iteration it finds the closest template point for each cloud point, computes the rigid transform (rotation + translation) that minimises the total distance, and applies it. After convergence you have the full 6DOF pose — position and orientation — which determines the grasp angle. ICP is a local optimiser: it needs a good starting position (from detection + depth) to converge to the correct pose rather than a local minimum.</span>
       </div>
@@ -450,7 +455,7 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
     <div style="margin-bottom:6px;margin-top:16px;padding:6px 8px;background:#060c18;border-left:2px solid #a78bfa;border-top:.5px solid #1a2e44;border-radius:2px;">
       <div style="display:flex;flex-direction:column;gap:2px;">
         <div><span style="color:#a78bfa;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;">Planning</span><span class="hiw-group-sub"> · grasp pose and motion waypoints</span></div>
-        <div class="hiw-group-sub">steps 5–6 &nbsp;(grasp lookup, IK solve)</div>
+        <div class="hiw-group-sub">steps 6–7 &nbsp;(grasp lookup, IK solve)</div>
         <div class="hiw-group-sub">computed from depth data before arm moves</div>
         <div class="hiw-group-tags" style="margin-top:4px;"></div>
       </div>
@@ -1119,7 +1124,7 @@ const S={IDLE:0,SCAN:1,APPROACH:2,DESCEND:3,WRIST_VERIFY:4,PICK:5,VAC_CONFIRM:6,
 let state=S.IDLE,stateT=0,cp=null,held=false,cupFace=new THREE.Vector3();
 let cycleStartTime=0,totalPausedMs=0,pauseStartTime=0;
 let WPA,WPP,WPL,WPM,WPQ,WPPS,vph=0,vphT=0,_scanLogged={};
-const SCAN_DUR=[0.22,0.28,0.32,0.32,0.12,0.22];
+const SCAN_DUR=[0.22,0.28,0.20,0.32,0.32,0.12,0.22];
 function setLbl(txt){const el=document.getElementById('plbl');el.textContent=txt;el.style.color='#7dc8ff';}
 function cupNear(wp,tol){return Math.sqrt((cupFace.x-wp.x)**2+(cupFace.y-wp.y)**2+(cupFace.z-wp.z)**2)<tol;}
 
@@ -1603,15 +1608,38 @@ function animate(ts){
       stateT+=dt;
       if(state===S.SCAN){
         beam.material.opacity=0.05+Math.sin(stateT*15)*0.025;vphT+=dt;if(vph<SCAN_DUR.length&&vphT>SCAN_DUR[vph]){vphT=0;vph++;}
-        const names=['Frame capture','YOLOv8 detect','Depth+cloud','Pose ICP','Grasp lookup','IK solve'];
-        setLbl(`[${Math.min(vph+1,6)}/16] ${names[Math.min(vph,5)]}`);
-        resetWpStrip();for(let i=0;i<vph;i++)setWpDone(i);if(vph<6)setWpActive(vph);
+        const names=['Frame capture','YOLOv8 detect','IR reseed','Depth+cloud','Pose ICP','Grasp lookup','IK solve'];
+        setLbl(`[${Math.min(vph+1,7)}/16] ${names[Math.min(vph,6)]}`);
+        resetWpStrip();for(let i=0;i<vph;i++)setWpDone(i);if(vph<7)setWpActive(vph);
         if(vph===1&&!_scanLogged[1]){_scanLogged[1]=true;log(`YOLOv8: "${cp.userData.type}" conf=${(.94+Math.random()*.05).toFixed(2)} lat=18ms`,'ok');}
-        if(vph===2&&!_scanLogged[2]){_scanLogged[2]=true;log(`Point cloud: ${pcPoints.length}pts depth pipeline active`,'dim');}
-        if(vph===3&&!_scanLogged[3]){_scanLogged[3]=true;log('ICP pose - PASS','ok');}
-        if(vph===4&&!_scanLogged[4]){_scanLogged[4]=true;hideBbox();showBbox(cp);}
-        if(vph===5&&!_scanLogged[5]){
-          _scanLogged[5]=true;
+        if(vph===2&&!_scanLogged[2]){
+          _scanLogged[2]=true;
+          // Detection-informed IR reseed: place extra IR dots on detected part surfaces
+          const newDots=[];
+          parts.filter(p=>p.visible&&p.userData.onPlat).forEach(p=>{
+            const proj=project3D(stereoL,p.position);
+            if(!proj.inFrustum)return;
+            // Seed a tight cluster of IR dots around each detected part centroid in world space
+            const nNew=8;
+            for(let i=0;i<nNew;i++){
+              const ang=i/nNew*Math.PI*2;
+              const r=0.06+Math.random()*0.08;
+              const wx=p.position.x+Math.cos(ang)*r;
+              const wz=p.position.z+Math.sin(ang)*r;
+              if(Math.abs(wx)<PLAT_HALF&&Math.abs(wz)<PLAT_HALF){
+                IR_NDC_adaptive.push(new THREE.Vector3(wx,PLAT_TOP,wz));
+                newDots.push([wx,wz]);
+              }
+            }
+          });
+          stampIRDots(false);
+          log(`IR reseed: +${newDots.length} dots on ${parts.filter(p=>p.visible&&p.userData.onPlat).length} detected parts → re-running disparity`,'ok');
+        }
+        if(vph===3&&!_scanLogged[3]){_scanLogged[3]=true;log(`Point cloud: ${pcPoints.length}pts depth pipeline active`,'dim');}
+        if(vph===4&&!_scanLogged[4]){_scanLogged[4]=true;log('ICP pose - PASS','ok');}
+        if(vph===5&&!_scanLogged[5]){_scanLogged[5]=true;hideBbox();showBbox(cp);}
+        if(vph===6&&!_scanLogged[6]){
+          _scanLogged[6]=true;
           // Depth-informed grasp: sample disparity at part centre, refine waypoints
           const cpCenter=project3D(stereoL,cp.position);
           let graspSource='known geometry';
@@ -1619,7 +1647,7 @@ function animate(ts){
           log(`MoveIt2 IK solved - 5 waypoints - grasp from ${graspSource}`,'ok');
           pathOrigPts=getPlannedWps();buildOrigPath(pathOrigPts);
         }
-        if(vph>=SCAN_DUR.length){beam.material.opacity=0;hideBbox();state=S.APPROACH;stateT=0;setTarget(WPA.x,WPA.y,WPA.z);setLbl('[7/16] Arm approach');}
+        if(vph>=SCAN_DUR.length){beam.material.opacity=0;hideBbox();state=S.APPROACH;stateT=0;setTarget(WPA.x,WPA.y,WPA.z);setLbl('[8/16] Arm approach');}
       }
       if(state===S.APPROACH){setTarget(WPA.x,WPA.y,WPA.z);updateActualPath();for(let i=0;i<6;i++)setWpDone(i);setWpActive(6);if(cupNear(WPA,0.18)||stateT>5){state=S.DESCEND;stateT=0;setLbl('[8/16] Arm descend');}}
       if(state===S.DESCEND){const f=clamp(stateT/1.5,0,1);setTarget(WPP.x,lerp(WPA.y,WPP.y,eio(f)),WPP.z);updateActualPath();for(let i=0;i<7;i++)setWpDone(i);setWpActive(7);if(cupNear(WPP,0.12)||stateT>4){state=S.WRIST_VERIFY;stateT=0;setLbl('[9/16] Wrist verify');}}
