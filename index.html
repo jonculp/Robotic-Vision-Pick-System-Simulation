@@ -241,7 +241,7 @@ button.combined-mode:hover:not(:disabled){background:linear-gradient(160deg,#241
     <div id="panels-col">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
         <div class="lbl2" style="margin-bottom:0;">Vision panels</div>
-        <button id="btncam" onclick="cycleCamMode()" class="cam-toggle">Cam: RGB</button>
+        <button id="btncam" onclick="cycleCamMode()" class="cam-toggle combined-mode">Cam: RGB + IR</button>
       </div>
       <div class="vgrid">
         <div class="vpanel"><div class="vphdr"><div class="vphdr-left"><span class="vpdot live"></span><span class="txt">Left camera</span></div><span class="vpstat" id="stat-fl"></span></div><canvas class="vpcanvas" id="vl" width="320" height="240"></canvas></div>
@@ -877,13 +877,15 @@ const cfoot=mkBox(0.4,0.05,0.4,0x1a2535,0.7,0.3);cfoot.position.set(CAM_POLE_X,0
 const camBar=mkBox(CAM_POLE_X,0.07,0.07,0x1c2a3a,0.7,0.4);camBar.position.set(CAM_POLE_X/2,CAM_BOOM_Y,0);scene.add(camBar);
 const brace=mkBox(Math.sqrt(1.2**2+1.2**2),0.04,0.04,0x1a2535,0.7,0.3);brace.position.set(CAM_POLE_X-0.6,CAM_BOOM_Y-0.6,0);brace.rotation.z=-Math.PI/4;scene.add(brace);
 const dropBar=mkCyl(0.04,0.04,0.4,0x1c2a3a,0.6,0.4);dropBar.position.set(0,CAM_BOOM_Y-0.2,0);scene.add(dropBar);
-const crossBar=mkBox(BASELINE*2+0.3,0.05,0.05,0x1c2a3a,0.6,0.4);crossBar.position.set(0,CAM_BASE_Y,0);scene.add(crossBar);
-[-BASELINE,BASELINE].forEach(x=>{const g=new THREE.Group();g.position.set(x,CAM_BASE_Y,0);g.add(mkBox(0.18,0.14,0.22,0x1c2a3a,0.6,0.45));const l=mkCyl(0.045,0.045,0.1,0x080808,0.1,0.8);l.rotation.x=Math.PI/2;l.position.set(0,-0.09,0);g.add(l);scene.add(g);});
+// Baseline now runs along Z (front-back), perpendicular to arm reach axis (X)
+const crossBar=mkBox(0.05,0.05,BASELINE*2+0.3,0x1c2a3a,0.6,0.4);crossBar.position.set(0,CAM_BASE_Y,0);scene.add(crossBar);
+[-BASELINE,BASELINE].forEach(z=>{const g=new THREE.Group();g.position.set(0,CAM_BASE_Y,z);g.add(mkBox(0.18,0.14,0.22,0x1c2a3a,0.6,0.45));const l=mkCyl(0.045,0.045,0.1,0x080808,0.1,0.8);l.rotation.x=Math.PI/2;l.position.set(0,-0.09,0);g.add(l);scene.add(g);});
 
-const stereoL=new THREE.PerspectiveCamera(52,CAM_W/CAM_H,0.1,20);stereoL.position.set(-BASELINE,CAM_BASE_Y,CAM_BASE_Z);
-const stereoR=new THREE.PerspectiveCamera(52,CAM_W/CAM_H,0.1,20);stereoR.position.set(BASELINE,CAM_BASE_Y,CAM_BASE_Z);
-stereoL.up.set(0,0,1);stereoL.lookAt(stereoL.position.x,0,stereoL.position.z);
-stereoR.up.set(0,0,1);stereoR.lookAt(stereoR.position.x,0,stereoR.position.z);
+// stereoL at +Z so SAD x+d search direction is correct (baseline along Z, image-right = world +Z)
+const stereoL=new THREE.PerspectiveCamera(52,CAM_W/CAM_H,0.1,20);stereoL.position.set(0,CAM_BASE_Y,BASELINE);
+const stereoR=new THREE.PerspectiveCamera(52,CAM_W/CAM_H,0.1,20);stereoR.position.set(0,CAM_BASE_Y,-BASELINE);
+stereoL.up.set(1,0,0);stereoL.lookAt(0,0,stereoL.position.z);
+stereoR.up.set(1,0,0);stereoR.lookAt(0,0,stereoR.position.z);
 stereoR.quaternion.copy(stereoL.quaternion);
 
 const FOV_RAD=52*Math.PI/180;
@@ -1070,13 +1072,13 @@ new ResizeObserver(entries=>{const{width,height}=entries[0].contentRect;if(width
 {const lrh=document.getElementById('lrh'),lw=document.getElementById('lw');let rsz=false,rsyStart=0,rshStart=0;lrh.addEventListener('mousedown',e=>{rsz=true;rsyStart=e.clientY;rshStart=lw.clientHeight;document.body.style.cursor='ns-resize';e.preventDefault();});document.addEventListener('mousemove',e=>{if(!rsz)return;lw.style.height=Math.max(60,Math.min(600,rshStart+(e.clientY-rsyStart)))+'px';});document.addEventListener('mouseup',()=>{rsz=false;document.body.style.cursor='';});}
 
 const logEl=document.getElementById('lw');
-let camMode='rgb';
-const CAM_MODE_LABELS={rgb:'RGB',ir:'IR',combined:'Combined'};
+let camMode='combined';
+const CAM_MODE_LABELS={rgb:'RGB',ir:'IR',combined:'RGB + IR'};
 const CAM_MODE_CLASSES={rgb:'',ir:'ir-mode',combined:'combined-mode'};
 
 function cycleCamMode(){
   camMode=camMode==='rgb'?'ir':camMode==='ir'?'combined':'rgb';
-  const btn=document.getElementById('btncam');btn.textContent='Cam: '+CAM_MODE_LABELS[camMode];btn.className=CAM_MODE_CLASSES[camMode]||'';
+  const btn=document.getElementById('btncam');btn.textContent='Cam: '+CAM_MODE_LABELS[camMode];btn.className='cam-toggle'+(CAM_MODE_CLASSES[camMode]?' '+CAM_MODE_CLASSES[camMode]:'');
   markSceneChanged();visionTimer=VISION_INTERVAL;
   log(`Camera panels -> ${CAM_MODE_LABELS[camMode]} mode`,'dim');
 }
@@ -1165,7 +1167,7 @@ const overlayTlCtx=document.getElementById('overlay-tl').getContext('2d');
 const vepipolarCtx=document.getElementById('vepipolar').getContext('2d');
 
 function drawWristCam(fault){
-  const active=state===S.DESCEND||state===S.WRIST_VERIFY||state===S.PICK||state===S.VAC_CONFIRM;
+  const active=state!==S.IDLE&&state!==S.SCAN&&state!==S.DONE;
   const dot=document.getElementById('wrist-dot');
   const stat=document.getElementById('stat-wrist');
 
@@ -1201,7 +1203,15 @@ function drawWristCam(fault){
       id.data[dst+3]=255;
     }
   }
-  vwristCtx.putImageData(id,0,0);
+  // Rotate 90° CW to align wrist cam with overhead panel orientation
+  const offW=document.createElement('canvas');offW.width=WRIST_W;offW.height=WRIST_H;
+  offW.getContext('2d').putImageData(id,0,0);
+  vwristCtx.save();
+  vwristCtx.translate(WRIST_W/2,WRIST_H/2);
+  vwristCtx.rotate(-Math.PI/2);
+  vwristCtx.drawImage(offW,-WRIST_W/2,-WRIST_H/2);
+  // All overlays drawn inside same transform so projected coords stay aligned
+  vwristCtx.translate(-WRIST_W/2,-WRIST_H/2);
 
   // Header bar
   vwristCtx.fillStyle='rgba(0,0,0,0.65)';vwristCtx.fillRect(0,0,WRIST_W,16);
@@ -1282,6 +1292,8 @@ function drawWristCam(fault){
     if(_ftSlip>0.05){vwristCtx.fillStyle='#f5a623';vwristCtx.fillText(`slip:${(_ftSlip*100).toFixed(0)}%`,270,WRIST_H-6);}
   }
 
+  vwristCtx.restore();
+
   if(dot){if(active)dot.classList.add('live');else dot.classList.remove('live');}
   if(stat)stat.textContent=active?(state===S.PICK?'PICK':'descending'):'monitoring';
 }
@@ -1339,11 +1351,11 @@ function drawDetections(fault){
 let pcPoints=[];
 function buildPointCloud(fault){pcPoints=[];parts.filter(p=>p.visible&&p.userData.onPlat).forEach(p=>{const projL=project3D(stereoL,p.position);const projR=project3D(stereoR,p.position);const trueDisp=Math.abs(projL.x-projR.x);const computedDepth=trueDisp>0.5?clamp((FOCAL_PX*BASELINE_M)/trueDisp,DEPTH_MIN,DEPTH_MAX):0;const nPts=fault?6:22;const spread=fault?0.55:0.10;for(let i=0;i<nPts;i++){const ox=(Math.random()-0.5)*spread,oz=(Math.random()-0.5)*spread;const dn=fault?(Math.random()-0.5)*1.4:0;pcPoints.push({x:p.position.x+ox,z:p.position.z+oz,depth:computedDepth+dn,col:PCOLS_CSS[p.userData.idx%PCOLS_CSS.length],valid:!fault});}});
   const W=320,H=240;vpcCtx.fillStyle='#030608';vpcCtx.fillRect(0,0,W,H);vpcCtx.strokeStyle='#0c1620';vpcCtx.lineWidth=1;for(let i=0;i<=8;i++){const x=i/8*W,y=i/8*H;vpcCtx.beginPath();vpcCtx.moveTo(x,0);vpcCtx.lineTo(x,H);vpcCtx.stroke();vpcCtx.beginPath();vpcCtx.moveTo(0,y);vpcCtx.lineTo(W,y);vpcCtx.stroke();}
-  function toScreen(wx,wz){return{sx:(-wx+2.5)/5.0*W,sy:(2.5-wz)/5.0*H};}
+  function toScreen(wx,wz){return{sx:(wz+2.5)/5.0*W,sy:(2.5-wx)/5.0*H};}
   const c0=toScreen(-2.1,-2.1),c3=toScreen(2.1,2.1);vpcCtx.strokeStyle='#1a3a5a';vpcCtx.lineWidth=1;vpcCtx.strokeRect(c0.sx,c0.sy,c3.sx-c0.sx,c3.sy-c0.sy);vpcCtx.fillStyle='#1a3a5a';vpcCtx.font='8px monospace';vpcCtx.fillText('platform',c0.sx+2,c0.sy+9);
   const pz=toScreen(PLACE.x-0.36,PLACE.z-0.36);vpcCtx.strokeStyle='#1a6a2a';vpcCtx.lineWidth=1;vpcCtx.strokeRect(pz.sx,pz.sy,(0.72/5.0)*W,(0.72/5.0)*H);vpcCtx.fillStyle='#1a6a2a';vpcCtx.font='8px monospace';vpcCtx.fillText('drop',pz.sx+2,pz.sy-2);
   pcPoints.forEach(pt=>{const{sx,sy}=toScreen(pt.x,pt.z);vpcCtx.fillStyle=pt.valid?pt.col:'#553300';vpcCtx.globalAlpha=fault?0.35:0.85;vpcCtx.beginPath();vpcCtx.arc(sx,sy,fault?1.5:2.5,0,Math.PI*2);vpcCtx.fill();vpcCtx.globalAlpha=1;});
-  [{cx:-BASELINE,label:'L'},{cx:BASELINE,label:'R'}].forEach(({cx,label})=>{const{sx,sy}=toScreen(cx,CAM_BASE_Z);vpcCtx.fillStyle='#3aa8f0';vpcCtx.beginPath();vpcCtx.arc(sx,sy,4,0,Math.PI*2);vpcCtx.fill();vpcCtx.fillStyle='#3aa8f0';vpcCtx.font='8px monospace';vpcCtx.fillText('CAM'+label,sx-8,sy-6);});
+  [{cz:BASELINE,label:'L'},{cz:-BASELINE,label:'R'}].forEach(({cz,label})=>{const{sx,sy}=toScreen(0,cz);vpcCtx.fillStyle='#3aa8f0';vpcCtx.beginPath();vpcCtx.arc(sx,sy,4,0,Math.PI*2);vpcCtx.fill();vpcCtx.fillStyle='#3aa8f0';vpcCtx.font='8px monospace';vpcCtx.fillText('CAM'+label,sx-8,sy-6);});
   const ef=toScreen(cupFace.x,cupFace.z);vpcCtx.strokeStyle='#7dc8ff';vpcCtx.lineWidth=1.5;vpcCtx.beginPath();vpcCtx.arc(ef.sx,ef.sy,5,0,Math.PI*2);vpcCtx.stroke();vpcCtx.beginPath();vpcCtx.moveTo(ef.sx-7,ef.sy);vpcCtx.lineTo(ef.sx+7,ef.sy);vpcCtx.moveTo(ef.sx,ef.sy-7);vpcCtx.lineTo(ef.sx,ef.sy+7);vpcCtx.stroke();vpcCtx.fillStyle='rgba(125,200,255,0.7)';vpcCtx.font='8px monospace';vpcCtx.fillText('arm',ef.sx+7,ef.sy+3);
   vpcCtx.font='9px monospace';vpcCtx.fillStyle=fault?'#aa4400':'#2a4a60';vpcCtx.fillText(fault?`${pcPoints.length}pts - depth unreliable`:`${pcPoints.length}pts`,4,H-4);document.getElementById('pcstat').textContent=`${pcPoints.length} pts`;
 }
